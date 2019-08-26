@@ -1,2 +1,2 @@
 # working time counter
-### v0.1-dev
+### v0.1.1

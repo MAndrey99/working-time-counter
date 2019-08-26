@@ -1,14 +1,13 @@
-import argparse
 from pathlib import Path
-from sys import argv, stdout
 import logging
 
 import daemon
 import stats
 
-APP_ROOT = Path(argv[0]).parent.parent
+APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = APP_ROOT / 'stats.sqlite'
-VERSION = 'v0.1'
+LOGS_DIR = APP_ROOT / 'logs'
+VERSION = 'v0.1.1'
 logger: logging.Logger
 
 
@@ -25,6 +24,8 @@ def print_statistics():
 
 
 def main():
+    import argparse
+
     parser = argparse.ArgumentParser(description='Программа для учета рабочего времени')
     subparsers = parser.add_subparsers(dest='action')
 
@@ -43,14 +44,19 @@ def main():
 
 
 def init():
+    from logging import handlers
+    from sys import stdout
     global logger
+
+    if not LOGS_DIR.is_dir():
+        LOGS_DIR.mkdir()
 
     formatter = logging.Formatter(
         fmt='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
         datefmt='%d.%m.%y %H:%M:%S'
     )
 
-    file_handler = logging.FileHandler(filename=APP_ROOT / 'log.txt', mode='w')
+    file_handler = handlers.RotatingFileHandler(LOGS_DIR / 'log', maxBytes=1024**2, backupCount=1, encoding="utf-8")
     file_handler.setFormatter(formatter)
 
     stdout_handler = logging.StreamHandler(stdout)

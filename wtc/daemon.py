@@ -33,8 +33,15 @@ def init(conn: sqlite.Connection):
     )
     ''')
 
+    logger.info('демон запущен')
+
 
 def start(db):
-    with sqlite.connect(db) as conn:
-        init(conn)
-        main_loop(conn)
+    try:
+        with sqlite.connect(db) as conn:
+            init(conn)
+            main_loop(conn)
+    except KeyboardInterrupt:
+        logger.info('демон завершил работу')
+    except Exception as e:
+        logger.error(f'демон завершил работу с ошибкой {e}')
