@@ -1,6 +1,7 @@
 import sqlite3 as sqlite
 from datetime import datetime, timedelta
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -34,14 +35,14 @@ class WorkStatistics:
         res._periods = periods
         return res
 
-    def period_stat(self, begin: datetime, end: datetime) -> timedelta:
-        assert end > begin
+    def period_stat(self, begin: datetime, end: Optional[datetime] = None) -> timedelta:
+        assert end is None or end > begin
         res = timedelta()
 
         for period in (
-                Period(max(begin, it.begin), min(end, it.end))
+                Period(max(begin, it.begin), min(end, it.end) if end is not None else it.end)
                 for it in self._periods
-                if it.end > begin and it.begin < end
+                if it.end > begin and (end is None or it.begin < end)
         ):
             res += period.end - period.begin
 
@@ -49,11 +50,11 @@ class WorkStatistics:
 
     def year_stat(self) -> timedelta:
         now = datetime.now()
-        return self.period_stat(datetime(now.year, 1, 1), now)
+        return self.period_stat(datetime(now.year, 1, 1))
 
     def month_stat(self) -> timedelta:
         now = datetime.now()
-        return self.period_stat(datetime(year=now.year, month=now.month, day=1), now)
+        return self.period_stat(datetime(year=now.year, month=now.month, day=1))
 
     def week_stat(self) -> timedelta:
         now = datetime.now()
@@ -64,6 +65,9 @@ class WorkStatistics:
                 minutes=now.minute,
                 seconds=now.second,
                 microseconds=now.microsecond
-            ),
-            now
+            )
         )
+
+    def day_stat(self) -> timedelta:
+        now = datetime.now()
+        return self.period_stat(datetime(now.year, now.month, now.day))

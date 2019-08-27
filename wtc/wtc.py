@@ -7,7 +7,7 @@ import stats
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = APP_ROOT / 'stats.sqlite'
 LOGS_DIR = APP_ROOT / 'logs'
-VERSION = 'v0.1.1'
+VERSION = 'v0.2'
 logger: logging.Logger
 
 
@@ -18,9 +18,10 @@ def print_info():
 
 def print_statistics():
     statistics = stats.WorkStatistics.from_db(DATABASE)
-    print(f'in this year: {statistics.year_stat().seconds / (60*60):.1f}h')
-    print(f'in this month: {statistics.month_stat().seconds / (60*60):.1f}h')
-    print(f'in this week: {statistics.week_stat().seconds / (60*60):.1f}h')
+    print(f'в этом году: {statistics.year_stat().seconds / (60*60):.1f}h')
+    print(f'в этом месяце: {statistics.month_stat().seconds / (60*60):.1f}h')
+    print(f'на этой неделе: {statistics.week_stat().seconds / (60*60):.1f}h')
+    print(f'сегодня: {statistics.week_stat().seconds / (60*60):.1f}h')
 
 
 def main():
