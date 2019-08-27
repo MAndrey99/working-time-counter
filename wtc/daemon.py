@@ -4,8 +4,8 @@ import logging
 
 logger = logging.getLogger('wtc.daemon')
 
-MINIMUM_ACTIVE_TIME = 10 * 60  # 10 min
-UPDATE_DELAY = 2 * 60  # 2 min
+MINIMUM_ACTIVE_TIME = 5 * 60  # 5 min
+UPDATE_DELAY = 60  # 1 min
 
 
 def main_loop(conn: sqlite.Connection):
@@ -17,10 +17,12 @@ def main_loop(conn: sqlite.Connection):
     logger.info('written new entry')
 
     while True:
-        sleep(UPDATE_DELAY)
-        cursor.execute(f'UPDATE active_time SET last_timestamp={int(time())} WHERE first_timestamp={int(begin)}')
-        conn.commit()
-        logger.info('entry updated')
+        try:
+            sleep(UPDATE_DELAY)
+        finally:
+            cursor.execute(f'UPDATE active_time SET last_timestamp={int(time())} WHERE first_timestamp={int(begin)}')
+            conn.commit()
+            logger.info('entry updated')
 
 
 def init(conn: sqlite.Connection):
