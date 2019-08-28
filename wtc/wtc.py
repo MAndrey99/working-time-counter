@@ -21,7 +21,7 @@ def print_statistics():
     print(f'в этом году: {statistics.year_stat().seconds / (60*60):.1f}h')
     print(f'в этом месяце: {statistics.month_stat().seconds / (60*60):.1f}h')
     print(f'на этой неделе: {statistics.week_stat().seconds / (60*60):.1f}h')
-    print(f'сегодня: {statistics.week_stat().seconds / (60*60):.1f}h')
+    print(f'сегодня: {statistics.day_stat().seconds / (60*60):.1f}h')
 
 
 def main():
