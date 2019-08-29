@@ -7,7 +7,7 @@ import stats
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = APP_ROOT / 'stats.sqlite'
 LOGS_DIR = APP_ROOT / 'logs'
-VERSION = 'v0.2'
+VERSION = 'v0.3'
 logger: logging.Logger
 
 
@@ -18,10 +18,10 @@ def print_info():
 
 def print_statistics():
     statistics = stats.WorkStatistics.from_db(DATABASE)
-    print(f'в этом году: {statistics.year_stat().seconds / (60*60):.1f}h')
-    print(f'в этом месяце: {statistics.month_stat().seconds / (60*60):.1f}h')
-    print(f'на этой неделе: {statistics.week_stat().seconds / (60*60):.1f}h')
-    print(f'сегодня: {statistics.week_stat().seconds / (60*60):.1f}h')
+    print(f'в этом году: {statistics.year.seconds / (60*60):.1f}h')
+    print(f'в этом месяце: {statistics.month.seconds / (60*60):.1f}h')
+    print(f'на этой неделе: {statistics.week.seconds / (60*60):.1f}h')
+    print(f'сегодня: {statistics.day.seconds / (60*60):.1f}h')
 
 
 def main():
@@ -30,9 +30,9 @@ def main():
     parser = argparse.ArgumentParser(description='Программа для учета рабочего времени')
     subparsers = parser.add_subparsers(dest='action')
 
-    daemon_parser = subparsers.add_parser('daemon')
-    info_parser = subparsers.add_parser('about')
-    stat_parser = subparsers.add_parser('stats')
+    stat_parser = subparsers.add_parser('stats', help='выводит подсчитаное время')
+    daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
+    info_parser = subparsers.add_parser('about', help='информация о программе')
 
     args = parser.parse_args()
 
@@ -42,6 +42,8 @@ def main():
         print_info()
     elif args.action == 'stats':
         print_statistics()
+    else:
+        parser.print_help()
 
 
 def init():

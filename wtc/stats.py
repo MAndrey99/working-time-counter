@@ -15,48 +15,50 @@ class WorkStatistics:
 
     @staticmethod
     def from_db(db) -> 'WorkStatistics':
-        periods = []
-
         conn: sqlite.Connection
         with sqlite.connect(db) as conn:
             cursor = conn.cursor()
 
             try:
-                cursor.execute(f'SELECT first_timestamp, last_timestamp FROM active_time ORDER BY first_timestamp')
-            except sqlite.OperationalError:
+                cursor.execute(
+                    f'SELECT first_timestamp, last_timestamp '
+                    f"FROM active_time WHERE last_timestamp > {datetime(datetime.now().year, 1, 1).timestamp()} "
+                    f'ORDER BY first_timestamp'
+                )
+            except sqlite.OperationalError as e:
                 res = WorkStatistics()
-                res._periods = periods
+                res._periods = tuple()
                 return res
 
-            for begin, end in cursor.fetchall():
-                periods.append(Period(datetime.fromtimestamp(begin), datetime.fromtimestamp(end)))
-
         res = WorkStatistics()
-        res._periods = periods
+        res._periods = tuple((
+                Period(datetime.fromtimestamp(begin), datetime.fromtimestamp(end))
+                for begin, end in cursor.fetchall()
+        ))
         return res
 
     def period_stat(self, begin: datetime, end: Optional[datetime] = None) -> timedelta:
         assert end is None or end > begin
-        res = timedelta()
-
-        for period in (
-                Period(max(begin, it.begin), min(end, it.end) if end is not None else it.end)
+        return timedelta(seconds=sum(
+                min(end, it.end).timestamp() - max(begin, it.begin).timestamp()
+                if end is not None
+                else it.end.timestamp() - max(begin, it.begin).timestamp()
                 for it in self._periods
                 if it.end > begin and (end is None or it.begin < end)
-        ):
-            res += period.end - period.begin
+        ))
 
-        return res
-
-    def year_stat(self) -> timedelta:
+    @property
+    def year(self) -> timedelta:
         now = datetime.now()
         return self.period_stat(datetime(now.year, 1, 1))
 
-    def month_stat(self) -> timedelta:
+    @property
+    def month(self) -> timedelta:
         now = datetime.now()
         return self.period_stat(datetime(year=now.year, month=now.month, day=1))
 
-    def week_stat(self) -> timedelta:
+    @property
+    def week(self) -> timedelta:
         now = datetime.now()
         return self.period_stat(
             now - timedelta(
@@ -68,6 +70,7 @@ class WorkStatistics:
             )
         )
 
-    def day_stat(self) -> timedelta:
+    @property
+    def day(self) -> timedelta:
         now = datetime.now()
         return self.period_stat(datetime(now.year, now.month, now.day))
