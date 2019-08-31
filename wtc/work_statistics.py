@@ -32,7 +32,8 @@ class WorkStatistics:
             year_begin = datetime(now.year, 1, 1).timestamp()
             month_begin = datetime(now.year, now.month, 1).timestamp()
             week_begin = datetime.fromordinal((now - timedelta(now.weekday())).toordinal()).timestamp()
-            day_begin = datetime(now.year, now.month, now.day).timestamp()
+            day_begin = datetime.fromordinal(now.toordinal()).timestamp()
+            del now
 
             def mk_period(begin: datetime, end: datetime):
                 nonlocal year, month, week, day, last_update
@@ -44,10 +45,10 @@ class WorkStatistics:
                 assert last_update is None or last_update <= begin
                 last_update = end
 
-                year += end_timestamp - max(begin_timestamp, year_begin)
-                month += end_timestamp - max(begin_timestamp, month_begin)
-                week += end_timestamp - max(begin_timestamp, week_begin)
-                day += end_timestamp - max(begin_timestamp, day_begin)
+                year += max(end_timestamp - max(begin_timestamp, year_begin), 0)
+                month += max(end_timestamp - max(begin_timestamp, month_begin), 0)
+                week += max(end_timestamp - max(begin_timestamp, week_begin), 0)
+                day += max(end_timestamp - max(begin_timestamp, day_begin), 0)
 
                 return Period(begin, end)
         else:
