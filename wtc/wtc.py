@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable
 import logging
 
 import daemon
@@ -9,6 +10,7 @@ DATABASE = APP_ROOT / 'stats.sqlite'
 LOGS_DIR = APP_ROOT / 'logs'
 VERSION = 'v0.3'
 logger: logging.Logger
+main: Callable
 
 
 def print_info():
@@ -24,33 +26,14 @@ def print_statistics():
     print(f'сегодня: {statistics.day.seconds / (60*60):.1f}h')
 
 
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Программа для учета рабочего времени')
-    subparsers = parser.add_subparsers(dest='action')
-
-    stat_parser = subparsers.add_parser('stats', help='выводит подсчитаное время')
-    daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
-    info_parser = subparsers.add_parser('about', help='информация о программе')
-
-    args = parser.parse_args()
-
-    if args.action == 'daemon':
-        daemon.start(DATABASE)
-    elif args.action == 'about':
-        print_info()
-    elif args.action == 'stats':
-        print_statistics()
-    else:
-        parser.print_help()
-
-
 def init():
+    import argparse
     from logging import handlers
+    from functools import partial
     from sys import stdout
-    global logger
+    global logger, main
 
+    # настраиваем логгирование
     if not LOGS_DIR.is_dir():
         LOGS_DIR.mkdir()
 
@@ -70,6 +53,25 @@ def init():
     logger.addHandler(file_handler)
     logger.setLevel(logging.ERROR)
 
+    # парсим аргументы и инициализируем функцию main
+    parser = argparse.ArgumentParser(description='Программа для учета рабочего времени')
+    subparsers = parser.add_subparsers(dest='action')
+
+    stat_parser = subparsers.add_parser('stats', help='выводит подсчитаное время')
+    daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
+    info_parser = subparsers.add_parser('about', help='информация о программе')
+
+    args = parser.parse_args()
+
+    if args.action == 'daemon':
+        main = partial(daemon.start, DATABASE)
+    elif args.action == 'about':
+        main = print_info
+    elif args.action == 'stats':
+        main = print_statistics
+    else:
+        main = parser.print_help
+
 
 if __name__ == '__main__':
     try:
@@ -77,4 +79,3 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         pass
-
