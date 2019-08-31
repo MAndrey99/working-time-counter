@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Callable
 import logging
 
+from work_statistics import WorkStatistics
 import daemon
-import stats
 
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
-DATABASE = APP_ROOT / 'stats.sqlite'
+DATABASE = str(APP_ROOT / 'stats.sqlite')
 LOGS_DIR = APP_ROOT / 'logs'
 VERSION = 'v0.3'
 logger: logging.Logger
@@ -19,7 +19,7 @@ def print_info():
 
 
 def print_statistics():
-    statistics = stats.WorkStatistics.from_db(DATABASE)
+    statistics = WorkStatistics.from_db(DATABASE)
     print(f'в этом году: {statistics.year.seconds / (60*60):.1f}h')
     print(f'в этом месяце: {statistics.month.seconds / (60*60):.1f}h')
     print(f'на этой неделе: {statistics.week.seconds / (60*60):.1f}h')

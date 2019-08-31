@@ -38,7 +38,7 @@ def init(conn: sqlite.Connection):
     logger.info('демон запущен')
 
 
-def start(db):
+def start(db: str):
     try:
         with sqlite.connect(db) as conn:
             init(conn)
