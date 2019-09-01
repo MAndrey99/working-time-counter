@@ -3,6 +3,11 @@ from datetime import datetime, date, timedelta
 from dataclasses import dataclass
 from typing import Optional, Callable
 
+year_begin: Optional[int] = None
+month_begin: Optional[int] = None
+week_begin: Optional[int] = None
+day_begin: Optional[int] = None
+
 
 @dataclass(frozen=True)
 class Period:
@@ -11,10 +16,12 @@ class Period:
 
 
 class WorkStatistics:
-    __slots__ = ('_periods', '_database', '_year', '_month', '_week', '_day', '_last_update')
+    __slots__ = ('_periods', '_database', '_year', '_month', '_week', '_day', '_last_update', '_db')
 
     @staticmethod
     def from_db(db: str, *, calculate_ymwd_stat=True) -> 'WorkStatistics':
+        global year_begin, month_begin, week_begin, day_begin
+
         mk_period: Callable[[datetime, datetime], Period]
         year: Optional[int]
         month: Optional[int]
@@ -75,22 +82,23 @@ class WorkStatistics:
                     f"FROM active_time WHERE last_timestamp > {datetime(datetime.now().year, 1, 1).timestamp()} "
                     f"ORDER BY first_timestamp"
                 )
-            except sqlite.OperationalError as e:
+            except sqlite.OperationalError:
                 res = WorkStatistics()
-                res._periods = tuple()
+                res._periods = []
                 return res
 
         res = WorkStatistics()
-        res._periods = list((
+        res._periods = [
                 mk_period(datetime.fromtimestamp(begin), datetime.fromtimestamp(end))
                 for begin, end in cursor.fetchall()
-        ))
+        ]
         res._database = db
         res._last_update = last_update
         res._year = year
         res._month = month
         res._week = week
         res._day = day
+        res._db = db
 
         return res
 
@@ -103,6 +111,40 @@ class WorkStatistics:
                 for it in self._periods
                 if it.end > begin and (end is None or it.begin < end)
         ))
+
+    def update(self):
+        # TODO: проверка дня, дня недели, месяца, года для инвалидации кэшированных значений
+
+        assert self._last_update
+
+        def mk_period(begin: datetime, end: datetime):
+            assert end > begin
+
+            begin_timestamp = begin.timestamp()
+            end_timestamp = end.timestamp()
+            assert end_timestamp < datetime.now().timestamp()
+            assert self._last_update <= begin
+            self._last_update = end
+
+            self._year += max(end_timestamp - max(begin_timestamp, year_begin), 0)
+            self._month += max(end_timestamp - max(begin_timestamp, month_begin), 0)
+            self._week += max(end_timestamp - max(begin_timestamp, week_begin), 0)
+            self._day += max(end_timestamp - max(begin_timestamp, day_begin), 0)
+
+            return Period(begin, end)
+
+        conn: sqlite.Connection
+        with sqlite.connect(self._db) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT first_timestamp, last_timestamp "
+                f"FROM active_time WHERE last_timestamp > {self._last_update} "
+                f"ORDER BY first_timestamp"
+            )
+        self._periods += [
+            mk_period(max(datetime.fromtimestamp(begin), self._last_update), datetime.fromtimestamp(end))
+            for begin, end in cursor.fetchall()
+        ]
 
     @property
     def year(self) -> timedelta:

@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Callable
 import logging
 
-from work_statistics import WorkStatistics
+from work_statistics_monitor import WordStatisticsMonitor
 import daemon
 
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
@@ -19,11 +19,8 @@ def print_info():
 
 
 def print_statistics():
-    statistics = WorkStatistics.from_db(DATABASE)
-    print(f'в этом году: {statistics.year.seconds / (60*60):.1f}h')
-    print(f'в этом месяце: {statistics.month.seconds / (60*60):.1f}h')
-    print(f'на этой неделе: {statistics.week.seconds / (60*60):.1f}h')
-    print(f'сегодня: {statistics.day.seconds / (60*60):.1f}h')
+    monitor = WordStatisticsMonitor(DATABASE)
+    monitor.print()
 
 
 def init():
