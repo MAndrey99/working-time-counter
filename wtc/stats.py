@@ -39,18 +39,23 @@ class WorkStatistics:
 
     def period_stat(self, begin: datetime, end: Optional[datetime] = None) -> timedelta:
         assert end is None or end > begin
+
+        if end is None:
+            def period_important_part(period: Period) -> float:
+                return period.end.timestamp() - max(begin, period.begin).timestamp()
+        else:
+            def period_important_part(period: Period) -> float:
+                return min(end, period.end).timestamp() - max(begin, period.begin).timestamp()
+
         return timedelta(seconds=sum(
-                min(end, it.end).timestamp() - max(begin, it.begin).timestamp()
-                if end is not None
-                else it.end.timestamp() - max(begin, it.begin).timestamp()
+                period_important_part(it)
                 for it in self._periods
                 if it.end > begin and (end is None or it.begin < end)
         ))
 
     @property
     def year(self) -> timedelta:
-        now = datetime.now()
-        return self.period_stat(datetime(now.year, 1, 1))
+        return self.period_stat(datetime(datetime.now().year, 1, 1))
 
     @property
     def month(self) -> timedelta:
