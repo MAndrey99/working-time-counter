@@ -52,8 +52,8 @@ class WordStatisticsMonitor:
 
     def work_statistics_dict(self) -> Dict[str, str]:
         return {
-            'year_hours': f'{self._stats.year.seconds / (60*60):.1f}',
-            'month_hours': f'{self._stats.year.seconds / (60*60):.1f}',
-            'week_hours': f'{self._stats.year.seconds / (60*60):.1f}',
-            'day_hours': f'{self._stats.year.seconds / (60*60):.1f}'
+            'year_hours': f'{self._stats.year.total_seconds() / (60*60):.1f}',
+            'month_hours': f'{self._stats.month.total_seconds() / (60*60):.1f}',
+            'week_hours': f'{self._stats.week.total_seconds() / (60*60):.1f}',
+            'day_hours': f'{self._stats.day.total_seconds() / (60*60):.1f}'
         }
