@@ -8,7 +8,8 @@ import daemon
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = str(APP_ROOT / 'stats.sqlite')
 LOGS_DIR = APP_ROOT / 'logs'
-VERSION = 'v0.3'
+VERSION = 'v1-dev'
+STATISTIC_UPDATE_DELAY = 3
 logger: logging.Logger
 main: Callable
 
@@ -20,7 +21,16 @@ def print_info():
 
 def print_statistics():
     monitor = WordStatisticsMonitor(DATABASE)
-    monitor.print()
+    monitor.print_statistic()
+
+
+def statistic_monitor():
+    from time import sleep
+
+    with WordStatisticsMonitor(DATABASE) as monitor:
+        while True:
+            monitor.update()
+            sleep(STATISTIC_UPDATE_DELAY)
 
 
 def init():
@@ -55,6 +65,8 @@ def init():
     subparsers = parser.add_subparsers(dest='action')
 
     stat_parser = subparsers.add_parser('stats', help='выводит подсчитаное время')
+    stat_parser.add_argument('-f', action='store_true', help='переводит в режим постоянного мониторинга')
+
     daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
     info_parser = subparsers.add_parser('about', help='информация о программе')
 
@@ -65,7 +77,10 @@ def init():
     elif args.action == 'about':
         main = print_info
     elif args.action == 'stats':
-        main = print_statistics
+        if args.f:
+            main = statistic_monitor
+        else:
+            main = print_statistics
     else:
         main = parser.print_help
 

@@ -23,9 +23,9 @@ class WordStatisticsMonitor:
             'в этом году: {year_hours}h\n' \
             'в этом месяце: {month_hours}h\n' \
             'на этой неделе: {week_hours}h\n' \
-            'егодня: {day_hours}h'
+            'сегодня: {day_hours}h'
 
-    def __enter__(self):
+    def __enter__(self) -> 'WordStatisticsMonitor':
         self._display_positions = {
             'year_hours': WordPosition(0, 13),
             'month_hours': WordPosition(1, 15),
@@ -36,19 +36,22 @@ class WordStatisticsMonitor:
         curses.noecho()
         curses.curs_set(False)  # делаем курсор невидимым
 
+        return self
+
     def __exit__(self, exc_type: type, exc_val: Exception, exc_tb):
         curses.endwin()
 
-    def print(self):
+    def print_statistic(self):
         print(self._template.format(**self.work_statistics_dict()))
 
     def update(self):
         self._stats.update()
 
-        for k, v in self.work_statistics_dict().items():
-            self._scr.addstr(*self._display_positions[k], v)
+        for n, line in enumerate(self._template.format(**self.work_statistics_dict()).split('\n')):
+            self._scr.addstr(n, 0, line)
 
         self._scr.refresh()
+        self._scr.clear()
 
     def work_statistics_dict(self) -> Dict[str, str]:
         return {
