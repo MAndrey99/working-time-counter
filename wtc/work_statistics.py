@@ -1,7 +1,7 @@
 import sqlite3 as sqlite
 from datetime import datetime, date, timedelta
 from dataclasses import dataclass
-from typing import Optional, Callable
+from typing import *
 
 year_begin: Optional[int] = None
 month_begin: Optional[int] = None
@@ -16,7 +16,16 @@ class Period:
 
 
 class WorkStatistics:
-    __slots__ = ('_periods', '_database', '_year', '_month', '_week', '_day', '_last_update', '_db')
+    __slots__ = ('_periods', '_year', '_month', '_week', '_day', '_last_update', '_db')
+
+    def __init__(self):
+        self._last_update: Optional[datetime] = None  # время последнего обновления данных из бд
+        self._periods: List[Period] = []  # список периодов работы за максимальный рассматриваемый срок
+        self._db: str = ""  # путь/имя базы данных
+        self._year: int = 0  # количество сосчитанных отработанных часов в году
+        self._month: int = 0  # количество сосчитанных отработанных часов в месяце
+        self._week: int = 0  # количество сосчитанных отработанных часов в неделе
+        self._day: int = 0  # количество сосчитанных отработанных часов в дне
 
     @staticmethod
     def from_db(db: str, *, calculate_ymwd_stat=True) -> 'WorkStatistics':
@@ -92,7 +101,6 @@ class WorkStatistics:
                 mk_period(datetime.fromtimestamp(begin), datetime.fromtimestamp(end))
                 for begin, end in cursor.fetchall()
         ]
-        res._database = db
         res._last_update = last_update
         res._year = year
         res._month = month
@@ -113,9 +121,24 @@ class WorkStatistics:
         ))
 
     def update(self):
-        # TODO: проверка дня, дня недели, месяца, года для инвалидации кэшированных значений
-
         assert self._last_update
+
+        today = date.today()
+        if today.year != self._last_update.year:
+            self._year = 0
+            self._month = 0
+            self._week = 0
+            self._day = 0
+        elif today.month != self._last_update.month:
+            self._month = 0
+            self._week = 0
+            self._day = 0
+        elif today.day != self._last_update.day:
+            self._day = 0
+
+            if today.weekday() < self._last_update.weekday() \
+                    or today.day - self._last_update.day >= 7:
+                self._week = 0
 
         def mk_period(begin: datetime, end: datetime):
             assert end > begin
@@ -138,7 +161,7 @@ class WorkStatistics:
             cursor = conn.cursor()
             cursor.execute(
                 f"SELECT first_timestamp, last_timestamp "
-                f"FROM active_time WHERE last_timestamp > {self._last_update} "
+                f"FROM active_time WHERE last_timestamp > {self._last_update.timestamp()} "
                 f"ORDER BY first_timestamp"
             )
         self._periods += [
