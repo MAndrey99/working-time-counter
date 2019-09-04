@@ -22,11 +22,11 @@ class WorkStatistics:
         self._last_update: Optional[datetime] = None  # время последнего обновления данных из бд
         self._periods: List[Period] = []  # список периодов работы за максимальный рассматриваемый срок
         self._db: str = ""  # путь/имя базы данных
-        self._cache_ymwd: bool = False
-        self._year: Optional[int] = None  # количество сосчитанных отработанных часов в году
-        self._month: Optional[int] = None  # количество сосчитанных отработанных часов в месяце
-        self._week: Optional[int] = None  # количество сосчитанных отработанных часов в неделе
-        self._day: Optional[int] = None  # количество сосчитанных отработанных часов в дне
+        self._cache_ymwd: bool = False  # используется ли кэширование рассчитанного отработаного времени
+        self._year: Optional[int] = None  # количество отработанного времени в году (сек)
+        self._month: Optional[int] = None  # количество отработанного времени в месяце (сек)
+        self._week: Optional[int] = None  # количество отработанного времени в неделе (сек)
+        self._day: Optional[int] = None  # количество отработанного времени в дне (сек)
 
     @staticmethod
     def from_db(db: str, *, cache_ymwd=True) -> 'WorkStatistics':
