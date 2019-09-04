@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger('wtc.daemon')
 
-MINIMUM_ACTIVE_TIME = 5 * 60  # 5 min
+MINIMUM_ACTIVE_TIME = 7 * 60  # 7 min
 UPDATE_DELAY = 60  # 1 min
 
 
