@@ -29,12 +29,12 @@ class WorkStatistics:
         self._day: Optional[int] = None  # количество сосчитанных отработанных часов в дне
 
     @staticmethod
-    def from_db(db: str, *, calculate_ymwd_stat=True) -> 'WorkStatistics':
+    def from_db(db: str, *, cache_ymwd=True) -> 'WorkStatistics':
         """
         загрузка данных из базы и создание экземпляра WorkStatistics
 
         :param db: имя/путь базы
-        :param calculate_ymwd_stat: требуется ли сразу вычислить статистику за год, месяц, неделю, день
+        :param cache_ymwd: требуется ли кэшировать статистику за год, месяц, неделю, день
         :return: WorkStatistics со считанной из бд информацией
         """
 
@@ -47,7 +47,7 @@ class WorkStatistics:
         day = 0
         last_update: Optional[datetime] = None
 
-        if calculate_ymwd_stat:
+        if cache_ymwd:
             now = date.today()
             year_begin = datetime(now.year, 1, 1).timestamp()
             month_begin = datetime(now.year, now.month, 1).timestamp()
@@ -103,7 +103,7 @@ class WorkStatistics:
         res._last_update = last_update
         res._db = db
 
-        if calculate_ymwd_stat:
+        if cache_ymwd:
             res._cache_ymwd = True
             res._year = year
             res._month = month
@@ -137,43 +137,45 @@ class WorkStatistics:
 
         assert self._last_update
 
-        # TODO fix: а если мы не вычисляли эти значения зарание и их вообще не надо учитывать?
-        today = date.today()
-        if today.year != self._last_update.year:
-            self._year = 0
-            self._month = 0
-            self._week = 0
-            self._day = 0
-        elif today.month != self._last_update.month:
-            self._month = 0
-            self._week = 0
-            self._day = 0
-        elif today.day != self._last_update.day:
-            self._day = 0
-
-            if today.weekday() < self._last_update.weekday() \
-                    or today.day - self._last_update.day >= 7:
+        if self._cache_ymwd:
+            today = date.today()
+            if today.year != self._last_update.year:
+                self._year = 0
+                self._month = 0
                 self._week = 0
+                self._day = 0
+            elif today.month != self._last_update.month:
+                self._month = 0
+                self._week = 0
+                self._day = 0
+            elif today.day != self._last_update.day:
+                self._day = 0
 
-        def mk_period(begin: datetime, end: datetime) -> Period:
-            """
-            создает промежуток времени, обновляя зарание вычисленные значения активного времени
-            """
+                if today.weekday() < self._last_update.weekday() \
+                        or today.day - self._last_update.day >= 7:
+                    self._week = 0
 
-            assert end > begin
+            def mk_period(begin: datetime, end: datetime) -> Period:
+                """
+                создает промежуток времени, обновляя зарание вычисленные значения активного времени
+                """
 
-            begin_timestamp = begin.timestamp()
-            end_timestamp = end.timestamp()
-            assert end_timestamp < datetime.now().timestamp()
-            assert self._last_update <= begin
-            self._last_update = end
+                assert end > begin
 
-            self._year += max(end_timestamp - max(begin_timestamp, year_begin), 0)
-            self._month += max(end_timestamp - max(begin_timestamp, month_begin), 0)
-            self._week += max(end_timestamp - max(begin_timestamp, week_begin), 0)
-            self._day += max(end_timestamp - max(begin_timestamp, day_begin), 0)
+                begin_timestamp = begin.timestamp()
+                end_timestamp = end.timestamp()
+                assert end_timestamp < datetime.now().timestamp()
+                assert self._last_update <= begin
+                self._last_update = end
 
-            return Period(begin, end)
+                self._year += max(end_timestamp - max(begin_timestamp, year_begin), 0)
+                self._month += max(end_timestamp - max(begin_timestamp, month_begin), 0)
+                self._week += max(end_timestamp - max(begin_timestamp, week_begin), 0)
+                self._day += max(end_timestamp - max(begin_timestamp, day_begin), 0)
+
+                return Period(begin, end)
+        else:
+            mk_period = Period
 
         conn: sqlite.Connection
         with sqlite.connect(self._db) as conn:
