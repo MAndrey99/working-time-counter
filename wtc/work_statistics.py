@@ -16,16 +16,17 @@ class Period:
 
 
 class WorkStatistics:
-    __slots__ = ('_periods', '_year', '_month', '_week', '_day', '_last_update', '_db')
+    __slots__ = ('_periods', '_cache_ymwd', '_year', '_month', '_week', '_day', '_last_update', '_db')
 
     def __init__(self):
         self._last_update: Optional[datetime] = None  # время последнего обновления данных из бд
         self._periods: List[Period] = []  # список периодов работы за максимальный рассматриваемый срок
         self._db: str = ""  # путь/имя базы данных
-        self._year: int = 0  # количество сосчитанных отработанных часов в году
-        self._month: int = 0  # количество сосчитанных отработанных часов в месяце
-        self._week: int = 0  # количество сосчитанных отработанных часов в неделе
-        self._day: int = 0  # количество сосчитанных отработанных часов в дне
+        self._cache_ymwd: bool = False
+        self._year: Optional[int] = None  # количество сосчитанных отработанных часов в году
+        self._month: Optional[int] = None  # количество сосчитанных отработанных часов в месяце
+        self._week: Optional[int] = None  # количество сосчитанных отработанных часов в неделе
+        self._day: Optional[int] = None  # количество сосчитанных отработанных часов в дне
 
     @staticmethod
     def from_db(db: str, *, calculate_ymwd_stat=True) -> 'WorkStatistics':
@@ -40,18 +41,13 @@ class WorkStatistics:
         global year_begin, month_begin, week_begin, day_begin
 
         mk_period: Callable[[datetime, datetime], Period]
-        year: Optional[int]
-        month: Optional[int]
-        week: Optional[int]
-        day: Optional[int]
+        year = 0
+        month = 0
+        week = 0
+        day = 0
         last_update: Optional[datetime] = None
 
         if calculate_ymwd_stat:
-            year = 0
-            month = 0
-            week = 0
-            day = 0
-
             now = date.today()
             year_begin = datetime(now.year, 1, 1).timestamp()
             month_begin = datetime(now.year, now.month, 1).timestamp()
@@ -76,11 +72,6 @@ class WorkStatistics:
 
                 return Period(begin, end)
         else:
-            year = None
-            month = None
-            week = None
-            day = None
-
             def mk_period(begin: datetime, end: datetime):
                 nonlocal last_update
                 assert end > begin
@@ -110,11 +101,14 @@ class WorkStatistics:
                 for begin, end in cursor.fetchall()
         ]
         res._last_update = last_update
-        res._year = year
-        res._month = month
-        res._week = week
-        res._day = day
         res._db = db
+
+        if calculate_ymwd_stat:
+            res._cache_ymwd = True
+            res._year = year
+            res._month = month
+            res._week = week
+            res._day = day
 
         return res
 
@@ -196,7 +190,7 @@ class WorkStatistics:
 
     @property
     def year(self) -> timedelta:
-        if self._year is not None:
+        if self._cache_ymwd:
             return timedelta(seconds=self._year)
 
         now = date.today()
@@ -204,7 +198,7 @@ class WorkStatistics:
 
     @property
     def month(self) -> timedelta:
-        if self._month is not None:
+        if self._cache_ymwd:
             return timedelta(seconds=self._month)
 
         now = date.today()
@@ -212,7 +206,7 @@ class WorkStatistics:
 
     @property
     def week(self) -> timedelta:
-        if self._week is not None:
+        if self._cache_ymwd:
             return timedelta(seconds=self._week)
 
         now = date.today()
@@ -220,7 +214,7 @@ class WorkStatistics:
 
     @property
     def day(self) -> timedelta:
-        if self._day is not None:
+        if self._cache_ymwd:
             return timedelta(seconds=self._day)
 
         now = date.today()
