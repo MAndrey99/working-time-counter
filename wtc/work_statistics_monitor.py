@@ -19,6 +19,7 @@ class WordStatisticsMonitor:
     def __init__(self, db: str):
         self._stats = WorkStatistics.from_db(db)
         # при изменении шаблона не забыть изменить _display_positions в __enter__!
+        # TODO: автоматическое вычисление позиций
         self._template = \
             'в этом году: {year_hours}h\n' \
             'в этом месяце: {month_hours}h\n' \
@@ -42,18 +43,23 @@ class WordStatisticsMonitor:
         curses.endwin()
 
     def print_statistic(self):
-        print(self._template.format(**self.work_statistics_dict()))
+        # TODO: добавить проверку на режим работы: с curses так лучше не выводить
+        print(self._template.format(**self._work_statistics_dict()))
 
     def update(self):
+        """
+        Обновить данные на мониторе в соответствие с новыцми данными в бд
+        """
+
         self._stats.update()
 
-        for n, line in enumerate(self._template.format(**self.work_statistics_dict()).split('\n')):
+        for n, line in enumerate(self._template.format(**self._work_statistics_dict()).split('\n')):
             self._scr.addstr(n, 0, line)
 
         self._scr.refresh()
         self._scr.clear()
 
-    def work_statistics_dict(self) -> Dict[str, str]:
+    def _work_statistics_dict(self) -> Dict[str, str]:
         return {
             'year_hours': f'{self._stats.year.total_seconds() / (60*60):.1f}',
             'month_hours': f'{self._stats.month.total_seconds() / (60*60):.1f}',

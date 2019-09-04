@@ -29,6 +29,14 @@ class WorkStatistics:
 
     @staticmethod
     def from_db(db: str, *, calculate_ymwd_stat=True) -> 'WorkStatistics':
+        """
+        загрузка данных из базы и создание экземпляра WorkStatistics
+
+        :param db: имя/путь базы
+        :param calculate_ymwd_stat: требуется ли сразу вычислить статистику за год, месяц, неделю, день
+        :return: WorkStatistics со считанной из бд информацией
+        """
+
         global year_begin, month_begin, week_begin, day_begin
 
         mk_period: Callable[[datetime, datetime], Period]
@@ -111,6 +119,14 @@ class WorkStatistics:
         return res
 
     def period_stat(self, begin: datetime, end: Optional[datetime] = None) -> timedelta:
+        """
+        активное время за произвольный промежуток времени
+
+        :param begin: начало рассматриваемого промежутка
+        :param end: конец рассматриваемого промежутка
+        :return: активное время
+        """
+
         assert end is None or end > begin
         return timedelta(seconds=sum(
                 min(end, it.end).timestamp() - max(begin, it.begin).timestamp()
@@ -121,8 +137,13 @@ class WorkStatistics:
         ))
 
     def update(self):
+        """
+        подгружает при необходимости новые данные из базы и обновляет изначально вычесленные значения если они были
+        """
+
         assert self._last_update
 
+        # TODO fix: а если мы не вычисляли эти значения зарание и их вообще не надо учитывать?
         today = date.today()
         if today.year != self._last_update.year:
             self._year = 0
@@ -140,7 +161,11 @@ class WorkStatistics:
                     or today.day - self._last_update.day >= 7:
                 self._week = 0
 
-        def mk_period(begin: datetime, end: datetime):
+        def mk_period(begin: datetime, end: datetime) -> Period:
+            """
+            создает промежуток времени, обновляя зарание вычисленные значения активного времени
+            """
+
             assert end > begin
 
             begin_timestamp = begin.timestamp()

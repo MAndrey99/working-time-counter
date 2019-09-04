@@ -34,6 +34,10 @@ def statistic_monitor():
 
 
 def init():
+    """
+    парсит аргументы, настраивает логгирование и инициализирует функцию main
+    """
+
     import argparse
     from logging import handlers
     from functools import partial
@@ -65,7 +69,7 @@ def init():
     subparsers = parser.add_subparsers(dest='action')
 
     stat_parser = subparsers.add_parser('stats', help='выводит подсчитаное время')
-    stat_parser.add_argument('-f', action='store_true', help='переводит в режим постоянного мониторинга')
+    stat_parser.add_argument('-f', dest='follow', action='store_true', help='переводит в режим постоянного мониторинга')
 
     daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
     info_parser = subparsers.add_parser('about', help='информация о программе')
@@ -73,16 +77,16 @@ def init():
     args = parser.parse_args()
 
     if args.action == 'daemon':
-        main = partial(daemon.start, DATABASE)
+        main = partial(daemon.start, DATABASE)  # запускает демона для записи времени активности в базу
     elif args.action == 'about':
-        main = print_info
+        main = print_info  # выводит информацию о программе
     elif args.action == 'stats':
-        if args.f:
-            main = statistic_monitor
+        if args.follow:
+            main = statistic_monitor  # данные с автоматическим обновлением
         else:
-            main = print_statistics
+            main = print_statistics  # просто печать данных
     else:
-        main = parser.print_help
+        main = parser.print_help  # печать инфы о передаваемых параметрах
 
 
 if __name__ == '__main__':
