@@ -28,9 +28,10 @@ def statistic_monitor():
     from time import sleep
 
     with WordStatisticsMonitor(DATABASE) as monitor:
+        monitor.print_statistic()
         while True:
-            monitor.update()
             sleep(STATISTIC_UPDATE_DELAY)
+            monitor.update()
 
 
 def init():
