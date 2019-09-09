@@ -58,7 +58,7 @@ def init():
     file_handler.setFormatter(formatter)
 
     stdout_handler = logging.StreamHandler(stdout)
-    stdout_handler.setFormatter(formatter)
+    stdout_handler.setFormatter(logging.Formatter(fmt='%(levelname)s: %(message)s'))
 
     logger = logging.getLogger('wtc')
     logger.addHandler(stdout_handler)
@@ -96,5 +96,5 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         pass
-    except FileNotFoundError as e:
-        print(e)  # например, если не найдена бд
+    except FileNotFoundError as e:  # например, если не найдена бд
+        logger.error(e)
