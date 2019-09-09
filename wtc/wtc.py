@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Callable
 import logging
 
-from work_statistics_monitor import WordStatisticsMonitor
+from work_statistics_monitor import WorkStatisticsMonitor
 import daemon
 
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
@@ -20,14 +20,14 @@ def print_info():
 
 
 def print_statistics():
-    monitor = WordStatisticsMonitor(DATABASE)
+    monitor = WorkStatisticsMonitor(DATABASE)
     monitor.print_statistic()
 
 
 def statistic_monitor():
     from time import sleep
 
-    with WordStatisticsMonitor(DATABASE) as monitor:
+    with WorkStatisticsMonitor(DATABASE) as monitor:
         monitor.print_statistic()
         while True:
             sleep(STATISTIC_UPDATE_DELAY)

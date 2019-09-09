@@ -13,7 +13,7 @@ class WordPosition:
         return iter((self.y, self.x))
 
 
-class WordStatisticsMonitor:
+class WorkStatisticsMonitor:
     __slots__ = ('_stats', '_scr', '_template')
 
     def __init__(self, db: str):
@@ -25,7 +25,7 @@ class WordStatisticsMonitor:
             'сегодня: {day_hours}h'
         self._scr = None
 
-    def __enter__(self) -> 'WordStatisticsMonitor':
+    def __enter__(self) -> 'WorkStatisticsMonitor':
         self._scr: curses = curses.initscr()
         curses.noecho()
         curses.curs_set(False)  # делаем курсор невидимым
