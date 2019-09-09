@@ -1,6 +1,7 @@
 import sqlite3 as sqlite
 from datetime import datetime, date, timedelta
 from dataclasses import dataclass
+from pathlib import Path
 from typing import *
 
 year_begin: Optional[int] = None
@@ -37,6 +38,8 @@ class WorkStatistics:
         :param cache_ymwd: требуется ли кэшировать статистику за год, месяц, неделю, день
         :return: WorkStatistics со считанной из бд информацией
         """
+        if not Path(db).is_file():
+            raise FileNotFoundError(f'файл {db} не найден')
 
         global year_begin, month_begin, week_begin, day_begin
 
@@ -61,7 +64,7 @@ class WorkStatistics:
 
                 begin_timestamp = begin.timestamp()
                 end_timestamp = end.timestamp()
-                assert end_timestamp < datetime.now().timestamp()
+                assert end_timestamp <= datetime.now().timestamp()
                 assert last_update is None or last_update <= begin
                 last_update = end
 
@@ -75,7 +78,7 @@ class WorkStatistics:
             def mk_period(begin: datetime, end: datetime):
                 nonlocal last_update
                 assert end > begin
-                assert end < datetime.now()
+                assert end <= datetime.now()
                 assert last_update is None or last_update < begin
                 last_update = end
                 return Period(begin, end)
