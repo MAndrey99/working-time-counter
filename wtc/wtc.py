@@ -96,3 +96,5 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         pass
+    except FileNotFoundError as e:
+        print(e)  # например, если не найдена бд

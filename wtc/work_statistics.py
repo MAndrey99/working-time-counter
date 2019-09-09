@@ -39,7 +39,7 @@ class WorkStatistics:
         :return: WorkStatistics со считанной из бд информацией
         """
         if not Path(db).is_file():
-            raise FileNotFoundError(f'файл {db} не найден')
+            raise FileNotFoundError('база данных не обноружена. для инициализации требуется запуск демона')
 
         global year_begin, month_begin, week_begin, day_begin
 
