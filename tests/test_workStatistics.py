@@ -1,7 +1,7 @@
 import sqlite3 as sqlite
-from pytest import raises, skip
+from pytest import raises
 from freezegun import freeze_time
-from wtc.work_statistics_monitor import WorkStatistics
+from wtc.work_statistics import WorkStatistics
 from datetime import datetime, date, timedelta
 from random import randint
 from typing import *
@@ -65,24 +65,61 @@ class TestWorkStatistics:
 
     def test_period_stat(self):
         def step_generator(begin: datetime) -> Iterable[datetime]:
-            t = begin
-            t += timedelta(seconds=randint(2, 15))
+            t = begin + timedelta(seconds=randint(2, 15))
             while t <= datetime.now():
                 yield t
-                t += timedelta(seconds=randint(50, 500))
+                t += timedelta(seconds=randint(60, 600))
 
-        ws = WorkStatistics.from_db(DATABASE)
         conn = sqlite.connect(DATABASE)
-        begin = datetime.now() - timedelta(days=365)
-        for it in step_generator(begin):
-            start = datetime.fromtimestamp(randint(begin.timestamp(), it.timestamp() - 1))
-            ps = ws.period_stat(start, it)
-            assert ps.total_seconds() == sql_period_length_call(conn, start, it)
 
-        # TODO: то же, но без кэша
+        for ws in (WorkStatistics.from_db(DATABASE), WorkStatistics.from_db(DATABASE, cache_ymwd=False)):
+            begin = datetime.now() - timedelta(days=365)
+            for it in step_generator(begin):
+                start = datetime.fromtimestamp(randint(begin.timestamp(), it.timestamp() - 1))
+                ps = ws.period_stat(start, it)
+                assert ps.total_seconds() == sql_period_length_call(conn, start, it)
 
     def test_update(self):
-        skip('TODO')
+        now = datetime.now()
+        day_end = datetime.fromordinal(now.toordinal()) + timedelta(days=1)
+        week_end = datetime(now.year, now.month, now.day) + timedelta(days=7 - now.weekday())
+        month_end = datetime(now.year, now.month + 1, 1) if now.month != 12 else datetime(now.year + 1, now.month, 1)
+        year_end = datetime(now.year + 1, 1, 1)
+
+        # проверяем девалидацию и пересчет кэша
+        ws = WorkStatistics.from_db(DATABASE)
+        last_cache = {
+                "day": ws._day,
+                "week": ws._week,
+                "month": ws._month,
+                "year": ws._year
+        }
+
+        with freeze_time(day_end):
+            ws.update()
+            assert ws.day.total_seconds() == ws._day == 0
+            if day_end < week_end:
+                assert ws.week.total_seconds() == ws._week and ws._week == last_cache['week']
+            if day_end < month_end:
+                assert ws.month.total_seconds() == ws._month == last_cache['month']
+                assert ws.year.total_seconds() == ws._year == last_cache['year']
+
+        with freeze_time(week_end):
+            ws.update()
+            assert ws.day.total_seconds() == ws._day == 0
+            assert ws.week.total_seconds() == ws._week == 0
+            if week_end < month_end:
+                assert ws.month.total_seconds() == ws._month == last_cache['month']
+                assert ws.year.total_seconds() == ws._year == last_cache['year']
+
+        with freeze_time(year_end):
+            ws.update()
+            assert ws.day.total_seconds() == ws._day == 0
+            assert ws.week.total_seconds() == ws._week == 0
+            assert ws.month.total_seconds() == ws._month == 0
+            assert ws.year.total_seconds() == ws._year == 0
+
+        # TODO: смоделировать добавление данных в базу и реализовать проверку без кэширования
 
     def test_ymwd(self):
         now = datetime.now()
@@ -92,11 +129,9 @@ class TestWorkStatistics:
         year_begin = datetime(now.year, 1, 1)
 
         conn = sqlite.connect(DATABASE)
-        ws = WorkStatistics.from_db(DATABASE)
 
-        assert ws.day.total_seconds() == sql_period_length_call(conn, day_begin, now)
-        assert ws.week.total_seconds() == sql_period_length_call(conn, week_begin, now)
-        assert ws.month.total_seconds() == sql_period_length_call(conn, month_begin, now)
-        assert ws.year.total_seconds() == sql_period_length_call(conn, year_begin, now)
-
-        # TODO: то же, но без кэша
+        for ws in (WorkStatistics.from_db(DATABASE), WorkStatistics.from_db(DATABASE, cache_ymwd=False)):
+            assert ws.day.total_seconds() == sql_period_length_call(conn, day_begin, now)
+            assert ws.week.total_seconds() == sql_period_length_call(conn, week_begin, now)
+            assert ws.month.total_seconds() == sql_period_length_call(conn, month_begin, now)
+            assert ws.year.total_seconds() == sql_period_length_call(conn, year_begin, now)
