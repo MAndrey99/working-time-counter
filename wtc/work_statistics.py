@@ -85,24 +85,21 @@ class WorkStatistics:
 
         conn: sqlite.Connection
         with sqlite.connect(db) as conn:
-            cursor = conn.cursor()
+            res = WorkStatistics()
 
             try:
-                cursor.execute(
-                    f"SELECT first_timestamp, last_timestamp "
-                    f"FROM active_time WHERE last_timestamp > {datetime(datetime.now().year, 1, 1).timestamp()} "
-                    f"ORDER BY first_timestamp"
-                )
+                res._periods = [
+                    mk_period(datetime.fromtimestamp(begin), datetime.fromtimestamp(end))
+                    for begin, end in conn.execute(
+                        f"SELECT first_timestamp, last_timestamp "
+                        f"FROM active_time WHERE last_timestamp > {datetime(datetime.now().year, 1, 1).timestamp()} "
+                        f"ORDER BY first_timestamp"
+                    ).fetchall()
+                ]
             except sqlite.OperationalError:
-                res = WorkStatistics()
                 res._periods = []
                 return res
 
-        res = WorkStatistics()
-        res._periods = [
-                mk_period(datetime.fromtimestamp(begin), datetime.fromtimestamp(end))
-                for begin, end in cursor.fetchall()
-        ]
         res._last_update = last_update
         res._db = db
 
@@ -182,8 +179,7 @@ class WorkStatistics:
 
         conn: sqlite.Connection
         with sqlite.connect(self._db) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            cursor = conn.execute(
                 f"SELECT first_timestamp, last_timestamp "
                 f"FROM active_time WHERE last_timestamp > {self._last_update.timestamp()} "
                 f"ORDER BY first_timestamp"
