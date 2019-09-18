@@ -1,8 +1,11 @@
 import sqlite3 as sqlite
+import logging
 from datetime import datetime, date, timedelta
 from dataclasses import dataclass
 from pathlib import Path
 from typing import *
+
+logger = logging.getLogger('wtc.WorkStatistics')
 
 year_begin: Optional[int] = None
 month_begin: Optional[int] = None
@@ -96,7 +99,8 @@ class WorkStatistics:
                         f"ORDER BY first_timestamp"
                     ).fetchall()
                 ]
-            except sqlite.OperationalError:
+            except sqlite.OperationalError as e:
+                logger.error(e)
                 res._periods = []
                 return res
 

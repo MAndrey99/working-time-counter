@@ -1,44 +1,26 @@
-import sqlite3 as sqlite
 from pytest import raises
+from unittest.mock import patch
 from freezegun import freeze_time
-from wtc.work_statistics import WorkStatistics
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from random import randint
 from typing import *
 
-DATABASE = 'testdb.sqlite'
+from .db_menenger import DatabaseManager
+from wtc.work_statistics import WorkStatistics
+
+DATABASE = 'tests/testdb.sqlite'
 
 
-def sql_period_length_call(
-        conn: sqlite.Connection,
-        begin: Union[int, float, date, datetime],
-        end: Union[int, float, date, datetime]):
-
-    if type(begin) is not int:
-        if type(begin) is float:
-            begin = int(begin)
-        elif type(begin) is datetime or type(begin) is date:
-            begin = int(begin.timestamp())
-        else:
-            raise ValueError
-
-    if type(end) is not int:
-        if type(end) is float:
-            end = int(end)
-        elif type(end) is datetime or type(end) is date:
-            end = int(end.timestamp())
-        else:
-            raise ValueError
-
-    return conn.execute(
-                f"select sum(min({end}, last_timestamp) - max({begin}, first_timestamp)) "
-                f"from active_time "
-                f"where last_timestamp > {begin} and first_timestamp < {end}"
-            ).fetchone()[0] or 0
-
-
-@freeze_time(lambda: datetime.fromtimestamp(1567633936))
+@freeze_time(lambda: datetime.fromtimestamp(1568194595))
 class TestWorkStatistics:
+    __slots__ = ("database_manager", )
+
+    def setup(self):
+        self.database_manager = DatabaseManager(DATABASE)
+
+    def teardown(self):
+        self.database_manager.close_connection()
+
     def test_init(self):
         ws = WorkStatistics()
 
@@ -70,14 +52,12 @@ class TestWorkStatistics:
                 yield t
                 t += timedelta(seconds=randint(60, 600))
 
-        conn = sqlite.connect(DATABASE)
-
         for ws in (WorkStatistics.from_db(DATABASE), WorkStatistics.from_db(DATABASE, cache_ymwd=False)):
             begin = datetime.now() - timedelta(days=365)
             for it in step_generator(begin):
                 start = datetime.fromtimestamp(randint(begin.timestamp(), it.timestamp() - 1))
                 ps = ws.period_stat(start, it)
-                assert ps.total_seconds() == sql_period_length_call(conn, start, it)
+                assert ps.total_seconds() == self.database_manager.get_period_length(start, it)
 
     def test_update(self):
         now = datetime.now()
@@ -95,29 +75,41 @@ class TestWorkStatistics:
                 "year": ws._year
         }
 
-        with freeze_time(day_end):
-            ws.update()
-            assert ws.day.total_seconds() == ws._day == 0
-            if day_end < week_end:
-                assert ws.week.total_seconds() == ws._week and ws._week == last_cache['week']
-            if day_end < month_end:
-                assert ws.month.total_seconds() == ws._month == last_cache['month']
-                assert ws.year.total_seconds() == ws._year == last_cache['year']
+        with self.database_manager.auto_rollback_connection_context() as conn:
+            with patch('sqlite3.connect') as connect_mock:
+                connect_mock.return_value = conn
 
-        with freeze_time(week_end):
-            ws.update()
-            assert ws.day.total_seconds() == ws._day == 0
-            assert ws.week.total_seconds() == ws._week == 0
-            if week_end < month_end:
-                assert ws.month.total_seconds() == ws._month == last_cache['month']
-                assert ws.year.total_seconds() == ws._year == last_cache['year']
+                with freeze_time(day_end):
+                    ws.update()
+                    assert ws.day.total_seconds() == ws._day == 0
+                    if day_end < week_end:
+                        assert ws.week.total_seconds() == ws._week and ws._week == last_cache['week']
+                    if day_end < month_end:
+                        assert ws.month.total_seconds() == ws._month == last_cache['month']
+                        assert ws.year.total_seconds() == ws._year == last_cache['year']
 
-        with freeze_time(year_end):
-            ws.update()
-            assert ws.day.total_seconds() == ws._day == 0
-            assert ws.week.total_seconds() == ws._week == 0
-            assert ws.month.total_seconds() == ws._month == 0
-            assert ws.year.total_seconds() == ws._year == 0
+                with freeze_time(week_end):
+                    ws.update()
+                    assert ws.day.total_seconds() == ws._day == 0
+                    assert ws.week.total_seconds() == ws._week == 0
+                    if week_end < month_end:
+                        assert ws.month.total_seconds() == ws._month == last_cache['month']
+                        assert ws.year.total_seconds() == ws._year == last_cache['year']
+
+                with freeze_time(month_end):
+                    ws.update()
+                    assert ws.day.total_seconds() == ws._day == 0
+                    assert ws.week.total_seconds() == ws._week == 0
+                    assert ws.month.total_seconds() == ws._month == 0
+
+                with freeze_time(year_end):
+                    ws.update()
+                    assert ws.day.total_seconds() == ws._day == 0
+                    assert ws.week.total_seconds() == ws._week == 0
+                    assert ws.month.total_seconds() == ws._month == 0
+                    assert ws.year.total_seconds() == ws._year == 0
+
+                connect_mock.assert_called_with(DATABASE)
 
         # TODO: смоделировать добавление данных в базу и реализовать проверку без кэширования
 
@@ -128,10 +120,8 @@ class TestWorkStatistics:
         month_begin = datetime(now.year, now.month, 1)
         year_begin = datetime(now.year, 1, 1)
 
-        conn = sqlite.connect(DATABASE)
-
         for ws in (WorkStatistics.from_db(DATABASE), WorkStatistics.from_db(DATABASE, cache_ymwd=False)):
-            assert ws.day.total_seconds() == sql_period_length_call(conn, day_begin, now)
-            assert ws.week.total_seconds() == sql_period_length_call(conn, week_begin, now)
-            assert ws.month.total_seconds() == sql_period_length_call(conn, month_begin, now)
-            assert ws.year.total_seconds() == sql_period_length_call(conn, year_begin, now)
+            assert ws.day.total_seconds() == self.database_manager.get_period_length(day_begin, now)
+            assert ws.week.total_seconds() == self.database_manager.get_period_length(week_begin, now)
+            assert ws.month.total_seconds() == self.database_manager.get_period_length(month_begin, now)
+            assert ws.year.total_seconds() == self.database_manager.get_period_length(year_begin, now)
