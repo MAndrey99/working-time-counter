@@ -2,8 +2,7 @@ from sqlalchemy.sql import func as sqlFunc
 from contextlib import contextmanager
 from typing import *
 
-from wtc.work_statistics import Period
-from wtc.database import new_session, Session
+from database import new_session, Session, Period
 
 
 class DatabaseManager:

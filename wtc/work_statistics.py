@@ -75,19 +75,14 @@ class WorkStatistics:
                 return Period(begin, end)
 
         res = WorkStatistics()
-        try:
-            session = new_session()
-            res._periods = [
-                mk_period(datetime.fromtimestamp(period.begin), datetime.fromtimestamp(period.end))
-                for period in session.query(Period)
-                                     .filter(Period.end > datetime(datetime.now().year, 1, 1).timestamp())
-                                     .order_by(Period.begin).all()
-            ]
-            session.close()
-        except Exception as e:  # TODO: указать точнее
-            logger.error(e)
-            res._periods = []
-            return res
+        session = new_session()
+        res._periods = [
+            mk_period(period.begin, period.end)
+            for period in session.query(Period)
+                                 .filter(Period.end > datetime(datetime.now().year, 1, 1).timestamp())
+                                 .order_by(Period.begin).all()
+        ]
+        session.close()
 
         res._last_update = last_update
 
@@ -167,8 +162,8 @@ class WorkStatistics:
 
         session = new_session()
         self._periods += [
-            mk_period(max(datetime.fromtimestamp(begin), self._last_update), datetime.fromtimestamp(end))
-            for begin, end in session.query(Period.end > self._last_update.timestamp()).order_by(Period.begin).all()
+            mk_period(max(period.begin, self._last_update), period.end)
+            for period in session.query(Period).filter(Period.end > self._last_update).order_by(Period.begin).all()
         ]
         session.close()
 

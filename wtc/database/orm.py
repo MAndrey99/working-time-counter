@@ -20,18 +20,12 @@ class Period(Base):
     def __init__(self, begin: Union[int, float, datetime, date], end: Optional[Union[int, float, datetime, date]]):
         assert not end or end > begin
 
-        # преобразуем btgin и end к datetime
         if type(begin) in (int, float):
             begin = datetime.fromtimestamp(begin)
-        elif type(begin) is date:
-            begin = datetime.fromordinal(begin.toordinal())
 
         if type(end) in (int, float):
             end = datetime.fromtimestamp(end)
-        elif type(end) is date:
-            end = datetime.fromordinal(end.toordinal())
 
-        assert type(begin) is datetime and (end is None or type(end) is datetime)
         self.begin = begin
         self.end = end
 
