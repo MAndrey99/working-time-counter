@@ -12,7 +12,7 @@ from work_statistics import WorkStatistics
 DATABASE = 'sqlite:///tests/testdb.sqlite'
 
 
-@freeze_time('2019-09-21 13:53:42.379014')
+@freeze_time('2019-09-25 15:41:45.000000')
 class TestWorkStatistics:
     __slots__ = ("database_manager", )
 
@@ -53,7 +53,7 @@ class TestWorkStatistics:
             t = begin + timedelta(seconds=randint(2, 15))
             while t <= datetime.now():
                 yield t
-                t += timedelta(seconds=randint(60, 600))
+                t += timedelta(seconds=randint(100, 2000))
 
         for ws in (WorkStatistics.from_db(), WorkStatistics.from_db(cache_ymwd=False)):
             begin = datetime.now() - timedelta(days=365)
