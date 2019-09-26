@@ -10,7 +10,7 @@ APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = 'sqlite:///' + str(APP_ROOT / 'stats.sqlite')
 
 engine = create_engine(DATABASE)
-Session = sessionmaker(bind=enumerate)
+Session = sessionmaker(bind=engine)
 
 
 def ini_period(obj, begin: Union[int, float, datetime, date], end: Optional[Union[int, float, datetime, date]]):
@@ -44,16 +44,27 @@ class OldPeriod(Base):
     __tablename__ = 'active_time'
     __init__ = ini_period
 
-    first_timestamp = Column(DateTime, primary_key=True)
-    last_timestamp = Column(DateTime)
+    first_timestamp = Column(INT, primary_key=True)
+    last_timestamp = Column(INT)
 
 
 def main():
-    session: SessionType
-    with Session() as session:
-        for it in session.query(OldPeriod).all():
-            session.add(NewPeriod(it.first_timestamp, it.last_timestamp))
-            OldPeriod.drop(engine)
+    session: SessionType = Session()
+
+    if not engine.dialect.has_table(engine, OldPeriod.__tablename__):
+        print("Ошибка! Таблица активного времени не найдена!")
+        return
+
+    if engine.dialect.has_table(engine, NewPeriod.__tablename__):
+        print("Ошибка! Таблица периодов уже существует!")
+        return
+
+    NewPeriod.metadata.create_all(engine)
+
+    for it in session.query(OldPeriod).all():
+        session.add(NewPeriod(it.first_timestamp, it.last_timestamp))
+
+    session.commit()
 
 
 if __name__ == '__main__':
