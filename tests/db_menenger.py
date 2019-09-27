@@ -1,4 +1,4 @@
-from sqlalchemy.sql import func as sqlFunc
+from sqlalchemy import func as sqlFunc
 from contextlib import contextmanager
 from typing import *
 
@@ -21,10 +21,13 @@ class DatabaseManager:
         session.rollback()
 
     def get_work_time_in_period(self, p: Period) -> int:
-        total_time = self.session.query(sqlFunc.sum(sqlFunc.min(p.end, Period.end) - sqlFunc.max(p.begin, Period.begin)))\
-            .filter((Period.end > p.begin) & (Period.begin < p.end))\
-            .first()[0]
-        return 0 if total_time is None else int(total_time)
+        total_time = 0
+        for it in self.session.query(Period).filter(
+                    # str по тому что в sqlite datetime хранится как строка
+                    (Period.end > str(p.begin)) & (Period.begin < str(p.end))
+                ):
+            total_time += (min(it.end, p.end) - max(it.begin, p.begin)).total_seconds()
+        return total_time
 
     def add_period(self, period: Period):
         """
