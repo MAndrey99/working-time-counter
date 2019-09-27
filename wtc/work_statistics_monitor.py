@@ -16,8 +16,8 @@ class WordPosition:
 class WorkStatisticsMonitor:
     __slots__ = ('_stats', '_scr', '_template')
 
-    def __init__(self, db: str):
-        self._stats = WorkStatistics.from_db(db)
+    def __init__(self):
+        self._stats = WorkStatistics.from_db()
         self._template = \
             'в этом году: {year_hours}h\n' \
             'в этом месяце: {month_hours}h\n' \

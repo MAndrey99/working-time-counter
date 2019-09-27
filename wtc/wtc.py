@@ -6,7 +6,7 @@ from work_statistics_monitor import WorkStatisticsMonitor
 import daemon
 
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
-DATABASE = str(APP_ROOT / 'stats.sqlite')
+DATABASE = 'sqlite:///' + str(APP_ROOT / 'stats.sqlite')
 LOGS_DIR = APP_ROOT / 'logs'
 VERSION = 'v1-dev'
 STATISTIC_UPDATE_DELAY = 10
@@ -20,14 +20,14 @@ def print_info():
 
 
 def print_statistics():
-    monitor = WorkStatisticsMonitor(DATABASE)
+    monitor = WorkStatisticsMonitor()
     monitor.print_statistic()
 
 
 def statistic_monitor():
     from time import sleep
 
-    with WorkStatisticsMonitor(DATABASE) as monitor:
+    with WorkStatisticsMonitor() as monitor:
         monitor.print_statistic()
         while True:
             sleep(STATISTIC_UPDATE_DELAY)
@@ -41,8 +41,8 @@ def init():
 
     import argparse
     from logging import handlers
-    from functools import partial
     from sys import stdout
+    from database import create_tables, init as initORM
     global logger, main
 
     # настраиваем логгирование
@@ -65,7 +65,7 @@ def init():
     logger.addHandler(file_handler)
     logger.setLevel(logging.ERROR)
 
-    # парсим аргументы и инициализируем функцию main
+    # парсим аргументы и инициализируем функцию main с orm
     parser = argparse.ArgumentParser(description='Программа для учета рабочего времени')
     subparsers = parser.add_subparsers(dest='action')
 
@@ -78,7 +78,9 @@ def init():
     args = parser.parse_args()
 
     if args.action == 'daemon':
-        main = partial(daemon.start, DATABASE)  # запускает демона для записи времени активности в базу
+        main = daemon.start  # запускает демона для записи времени активности в базу
+        initORM(DATABASE, check_exists=False)
+        create_tables()
     elif args.action == 'about':
         main = print_info  # выводит информацию о программе
     elif args.action == 'stats':
@@ -86,6 +88,8 @@ def init():
             main = statistic_monitor  # данные с автоматическим обновлением
         else:
             main = print_statistics  # просто печать данных
+
+        initORM(DATABASE)
     else:
         main = parser.print_help  # печать инфы о передаваемых параметрах
 

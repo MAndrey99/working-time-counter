@@ -1,54 +1,29 @@
-import sqlite3 as sqlite
-from pathlib import Path
-from datetime import datetime, date
 from contextlib import contextmanager
 from typing import *
 
-from wtc.work_statistics import Period
+from database import new_session, Session, Period
 
 
 class DatabaseManager:
-    __slots__ = ("_connection", )
+    __slots__ = ("session", )
 
-    def __init__(self, database: str):
-        assert Path(database).is_file()
-        self._connection = sqlite.connect(database)
+    def __init__(self):
+        self.session = new_session()
 
     def close_connection(self):
-        self._connection.close()
+        self.session.rollback()
 
     @contextmanager
-    def auto_rollback_connection_context(self) -> ContextManager[sqlite.Connection]:
-        with self._connection as conn:
-            yield conn
-            conn.rollback()  # TODO: должно работать...
+    def new_session_context(self) -> ContextManager[Session]:
+        session = new_session()
+        yield session
+        session.rollback()
 
-    def get_period_length(self, begin: Union[int, float, date, datetime], end: Union[int, float, date, datetime]) -> int:
-        if type(begin) is not int:
-            if type(begin) is float:
-                begin = int(begin)
-            elif type(begin) is datetime or type(begin) is date:
-                begin = int(begin.timestamp())
-            else:
-                raise ValueError
-
-        if type(end) is not int:
-            if type(end) is float:
-                end = int(end)
-            elif type(end) is datetime or type(end) is date:
-                end = int(end.timestamp())
-            else:
-                raise ValueError
-
-        return self._connection.execute(
-            f"select sum(min({end}, last_timestamp) - max({begin}, first_timestamp)) "
-            f"from active_time "
-            f"where last_timestamp > {begin} and first_timestamp < {end}"
-        ).fetchone()[0] or 0
-
-    def add_period(self, period: Period):
-        """
-        добавляет указаный промежуток времени в базу
-        """
-
-        pass  # TODO
+    def get_work_time_in_period(self, p: Period) -> int:
+        return sum(
+            (min(it.end, p.end) - max(it.begin, p.begin)).total_seconds()
+            for it in self.session.query(Period).filter(
+                    # str по тому что в sqlite datetime хранится как строка
+                    (Period.end > str(p.begin)) & (Period.begin < str(p.end))
+                )
+        )

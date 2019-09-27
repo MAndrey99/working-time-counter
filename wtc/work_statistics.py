@@ -1,8 +1,6 @@
-import sqlite3 as sqlite
 import logging
+from database import Period, new_session
 from datetime import datetime, date, timedelta
-from dataclasses import dataclass
-from pathlib import Path
 from typing import *
 
 logger = logging.getLogger('wtc.WorkStatistics')
@@ -13,19 +11,12 @@ week_begin: Optional[int] = None
 day_begin: Optional[int] = None
 
 
-@dataclass(frozen=True)
-class Period:
-    begin: datetime
-    end: datetime
-
-
 class WorkStatistics:
-    __slots__ = ('_periods', '_cache_ymwd', '_year', '_month', '_week', '_day', '_last_update', '_db')
+    __slots__ = ('_periods', '_cache_ymwd', '_year', '_month', '_week', '_day', '_last_update')
 
     def __init__(self):
         self._last_update: Optional[datetime] = None  # время последнего обновления данных из бд
         self._periods: List[Period] = []  # список периодов работы за максимальный рассматриваемый срок
-        self._db: str = ""  # путь/имя базы данных
         self._cache_ymwd: bool = False  # используется ли кэширование рассчитанного отработаного времени
         self._year: Optional[int] = None  # количество отработанного времени в году (сек)
         self._month: Optional[int] = None  # количество отработанного времени в месяце (сек)
@@ -33,7 +24,7 @@ class WorkStatistics:
         self._day: Optional[int] = None  # количество отработанного времени в дне (сек)
 
     @staticmethod
-    def from_db(db: str, *, cache_ymwd=True) -> 'WorkStatistics':
+    def from_db(*, cache_ymwd=True) -> 'WorkStatistics':
         """
         загрузка данных из базы и создание экземпляра WorkStatistics
 
@@ -41,9 +32,6 @@ class WorkStatistics:
         :param cache_ymwd: требуется ли кэшировать статистику за год, месяц, неделю, день
         :return: WorkStatistics со считанной из бд информацией
         """
-        if not Path(db).is_file():
-            raise FileNotFoundError('база данных не обноружена. для инициализации требуется запуск демона')
-
         global year_begin, month_begin, week_begin, day_begin
 
         mk_period: Callable[[datetime, datetime], Period]
@@ -86,26 +74,17 @@ class WorkStatistics:
                 last_update = end
                 return Period(begin, end)
 
-        conn: sqlite.Connection
-        with sqlite.connect(db) as conn:
-            res = WorkStatistics()
-
-            try:
-                res._periods = [
-                    mk_period(datetime.fromtimestamp(begin), datetime.fromtimestamp(end))
-                    for begin, end in conn.execute(
-                        f"SELECT first_timestamp, last_timestamp "
-                        f"FROM active_time WHERE last_timestamp > {datetime(datetime.now().year, 1, 1).timestamp()} "
-                        f"ORDER BY first_timestamp"
-                    ).fetchall()
-                ]
-            except sqlite.OperationalError as e:
-                logger.error(e)
-                res._periods = []
-                return res
+        res = WorkStatistics()
+        session = new_session()
+        res._periods = [
+            mk_period(period.begin, period.end)
+            for period in session.query(Period)
+                                 .filter(Period.end > datetime(datetime.now().year, 1, 1).timestamp())
+                                 .order_by(Period.begin).all()
+        ]
+        session.close()
 
         res._last_update = last_update
-        res._db = db
 
         if cache_ymwd:
             res._cache_ymwd = True
@@ -181,17 +160,12 @@ class WorkStatistics:
         else:
             mk_period = Period
 
-        conn: sqlite.Connection
-        with sqlite.connect(self._db) as conn:
-            cursor = conn.execute(
-                f"SELECT first_timestamp, last_timestamp "
-                f"FROM active_time WHERE last_timestamp > {self._last_update.timestamp()} "
-                f"ORDER BY first_timestamp"
-            )
+        session = new_session()
         self._periods += [
-            mk_period(max(datetime.fromtimestamp(begin), self._last_update), datetime.fromtimestamp(end))
-            for begin, end in cursor.fetchall()
+            mk_period(max(period.begin, self._last_update), period.end)
+            for period in session.query(Period).filter(Period.end > self._last_update).order_by(Period.begin).all()
         ]
+        session.close()
 
     @property
     def year(self) -> timedelta:
