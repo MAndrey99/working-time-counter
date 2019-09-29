@@ -69,7 +69,7 @@ def init():
     parser = argparse.ArgumentParser(description='Программа для учета рабочего времени')
     subparsers = parser.add_subparsers(dest='action')
 
-    stat_parser = subparsers.add_parser('stats', help='выводит подсчитаное время')
+    stat_parser = subparsers.add_parser('stat', help='выводит подсчитаное время')
     stat_parser.add_argument('-f', dest='follow', action='store_true', help='переводит в режим постоянного мониторинга')
 
     daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
@@ -83,7 +83,7 @@ def init():
         create_tables()
     elif args.action == 'about':
         main = print_info  # выводит информацию о программе
-    elif args.action == 'stats':
+    elif args.action == 'stat':
         if args.follow:
             main = statistic_monitor  # данные с автоматическим обновлением
         else:
