@@ -1,48 +1,36 @@
-import sqlite3 as sqlite
-from time import time, sleep
+from database import new_session, Period
+from datetime import datetime
+from time import sleep
 import logging
 
 logger = logging.getLogger('wtc.daemon')
 
 MINIMUM_ACTIVE_TIME = 5 * 60  # 5 min
-UPDATE_DELAY = 60  # 1 min
+UPDATE_DELAY = 30  # 1 sec
 
 
-def main_loop(conn: sqlite.Connection):
-    begin = time()
+def main_loop():
+    begin = datetime.now()
     sleep(MINIMUM_ACTIVE_TIME)
 
-    cursor = conn.cursor()  # при использовании conn.execute всеравно создается временный курсор
-    cursor.execute(f'INSERT INTO active_time (first_timestamp) VALUES ({int(begin)})')
+    session = new_session()
+    session.add(Period(begin, None))
     logger.info('written new entry')
 
     while True:
         try:
             sleep(UPDATE_DELAY)
         finally:
-            cursor.execute(f'UPDATE active_time SET last_timestamp={int(time())} WHERE first_timestamp={int(begin)}')
-            conn.commit()
+            session.query(Period).filter(Period.begin == begin).update({'end': datetime.now()})
+            session.commit()
             logger.info('entry updated')
 
 
-def init(conn: sqlite.Connection):
-    logger.setLevel(logging.INFO)
-
-    conn.execute('''
-    CREATE TABLE IF NOT EXISTS active_time (
-        first_timestamp timestamp PRIMARY KEY,
-        last_timestamp timestamp DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-
-    logger.info('демон запущен')
-
-
-def start(db):
+def start():
     try:
-        with sqlite.connect(db) as conn:
-            init(conn)
-            main_loop(conn)
+        logger.setLevel(logging.INFO)
+        logger.info('демон запущен')
+        main_loop()
     except KeyboardInterrupt:
         logger.info('демон завершил работу')
     except Exception as e:
