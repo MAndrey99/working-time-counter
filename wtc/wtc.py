@@ -42,7 +42,7 @@ def init():
     import argparse
     from logging import handlers
     from sys import stdout
-    from database import create_tables, init as initORM
+    from database import Period, create_tables, init as initORM
     global logger, main
 
     # настраиваем логгирование
@@ -71,6 +71,7 @@ def init():
 
     stat_parser = subparsers.add_parser('stat', help='выводит подсчитаное время')
     stat_parser.add_argument('-f', dest='follow', action='store_true', help='переводит в режим постоянного мониторинга')
+    stat_parser.add_argument(dest='period', type=Period.from_string, default=None, nargs='?')
 
     daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
     info_parser = subparsers.add_parser('about', help='информация о программе')
@@ -84,10 +85,18 @@ def init():
     elif args.action == 'about':
         main = print_info  # выводит информацию о программе
     elif args.action == 'stat':
-        if args.follow:
-            main = statistic_monitor  # данные с автоматическим обновлением
+        if args.period:
+            def main():
+                from work_statistics import WorkStatistics
+                print(f'{WorkStatistics.from_db(cache_ymwd=False).period_stat(args.period).total_seconds() / 360:.1f}')
+
+            if args.follow:
+                print('отображение в реальном времени для временных промежутков пока недоступно(')
         else:
-            main = print_statistics  # просто печать данных
+            if args.follow:
+                main = statistic_monitor  # данные с автоматическим обновлением
+            else:
+                main = print_statistics  # просто печать данных
 
         initORM(DATABASE)
     else:

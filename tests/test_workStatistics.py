@@ -59,7 +59,7 @@ class TestWorkStatistics:
             begin = datetime.now() - timedelta(days=365)
             for it in step_generator(begin):
                 start = datetime.fromtimestamp(randint(int(begin.timestamp()), int(it.timestamp()) - 1))
-                ps = ws.period_stat(start, it)
+                ps = ws.period_stat(Period(start, it))
                 assert isclose(ps.total_seconds(), self.database_manager.get_work_time_in_period(Period(start, it)))
 
     def test_update(self):

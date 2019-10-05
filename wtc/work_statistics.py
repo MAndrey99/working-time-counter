@@ -95,22 +95,24 @@ class WorkStatistics:
 
         return res
 
-    def period_stat(self, begin: datetime, end: Optional[datetime] = None) -> timedelta:
+    def period_stat(self, p: Period) -> timedelta:
         """
         активное время за произвольный промежуток времени
 
-        :param begin: начало рассматриваемого промежутка
-        :param end: конец рассматриваемого промежутка
+        :param p: промежуток в котором будет считаться активное время
         :return: активное время
         """
 
-        assert end is None or end > begin
+        if p.end is None:
+            p = Period(p.begin, datetime.now())
+
+        assert p.end > p.begin
         return timedelta(seconds=sum(
-                min(end, it.end).timestamp() - max(begin, it.begin).timestamp()
-                if end is not None
-                else it.end.timestamp() - max(begin, it.begin).timestamp()
+                min(p.end, it.end).timestamp() - max(p.begin, it.begin).timestamp()
+                if p.end is not None
+                else it.end.timestamp() - max(p.begin, it.begin).timestamp()
                 for it in self._periods
-                if it.end > begin and (end is None or it.begin < end)
+                if it.end > p.begin and (p.end is None or it.begin < p.end)
         ))
 
     def update(self):
@@ -172,29 +174,29 @@ class WorkStatistics:
         if self._cache_ymwd:
             return timedelta(seconds=self._year)
 
-        now = date.today()
-        return self.period_stat(datetime(now.year, 1, 1))
+        now = datetime.now()
+        return self.period_stat(Period(datetime(now.year, 1, 1), now))
 
     @property
     def month(self) -> timedelta:
         if self._cache_ymwd:
             return timedelta(seconds=self._month)
 
-        now = date.today()
-        return self.period_stat(datetime(year=now.year, month=now.month, day=1))
+        now = datetime.now()
+        return self.period_stat(Period(datetime(year=now.year, month=now.month, day=1), now))
 
     @property
     def week(self) -> timedelta:
         if self._cache_ymwd:
             return timedelta(seconds=self._week)
 
-        now = date.today()
-        return self.period_stat(datetime(now.year, now.month, now.day) - timedelta(days=now.weekday()))
+        now = datetime.now()
+        return self.period_stat(Period(datetime(now.year, now.month, now.day) - timedelta(days=now.weekday()), now))
 
     @property
     def day(self) -> timedelta:
         if self._cache_ymwd:
             return timedelta(seconds=self._day)
 
-        now = date.today()
-        return self.period_stat(datetime(now.year, now.month, now.day))
+        now = datetime.now()
+        return self.period_stat(Period(datetime(now.year, now.month, now.day), now))
