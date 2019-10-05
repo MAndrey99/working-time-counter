@@ -20,7 +20,7 @@ class TestPeriod:
                     assert t is int
                     return d
 
-            begin_timestamp = randint(0, 10*10)
+            begin_timestamp = randint(0, 10**10)
             begin = to_rand_type(begin_timestamp)
             if type(begin) is date:
                 begin_datetime = datetime.fromordinal(date.fromtimestamp(begin_timestamp).toordinal())
@@ -31,7 +31,7 @@ class TestPeriod:
                 end = None
                 end_datetime = None
             else:
-                end_timestamp = randint(begin_timestamp + 24 * 60 * 60, 10*10 + 24 * 60 * 60)
+                end_timestamp = randint(begin_timestamp + 24 * 60 * 60, 10**10 + 24 * 60 * 60 + 1)
                 end = to_rand_type(end_timestamp)
                 if type(end) is date:
                     end_datetime = datetime.fromordinal(date.fromtimestamp(end_timestamp).toordinal())
