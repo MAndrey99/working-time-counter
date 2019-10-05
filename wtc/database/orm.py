@@ -40,8 +40,8 @@ class Period(Base):
         self.end = end
 
     def __repr__(self):
-        end = f'{self.end.year}.{self.end.month}.{self.end.day}' if self.end else 'now'
-        return f'{self.begin.year}.{self.begin.month}.{self.begin.day}-{end}'
+        end = self.end.strftime('%Y.%m.%d %H:%M:%S') if self.end else 'now'
+        return f'{self.begin.strftime("%Y.%m.%d %H:%M:%S")} - {end}'
 
     def __eq__(self, other: 'Period'):
         return self.begin == other.begin and self.end == other.end

@@ -88,7 +88,7 @@ def init():
         if args.period:
             def main():
                 from work_statistics import WorkStatistics
-                print(f'{WorkStatistics.from_db(cache_ymwd=False).period_stat(args.period).total_seconds() / 360:.1f}h')
+                print(f'{WorkStatistics.from_db(cache_ymwd=False).period_stat(args.period).total_seconds() / 3600:.1f}h')
 
             if args.follow:
                 print('отображение в реальном времени для временных промежутков пока недоступно(')
