@@ -39,6 +39,13 @@ class Period(Base):
         self.begin = begin
         self.end = end
 
+    def __repr__(self):
+        end = f'{self.end.year}.{self.end.month}.{self.end.day}' if self.end else 'now'
+        return f'{self.begin.year}.{self.begin.month}.{self.begin.day}-{end}'
+
+    def __eq__(self, other: 'Period'):
+        return self.begin == other.begin and self.end == other.end
+
     @staticmethod
     def from_string(s: str) -> 'Period':
         assert s
@@ -74,7 +81,6 @@ class Period(Base):
 
         if len(dates) == 2:
             dates = list(map(parse_date, dates))
-            assert dates[1] > dates[0]
         else:
             dates[0] = parse_date(dates[0])
 

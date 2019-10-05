@@ -1,7 +1,8 @@
-from pytest import fail
+from pytest import raises
 from datetime import datetime, date
 from random import randint, choice, random
 from database import Period
+from typing import *
 
 
 class TestPeriod:
@@ -46,4 +47,39 @@ class TestPeriod:
             assert (t.begin, t.end) == res
 
     def test_from_string(self):
-        fail()  # TODO
+        def random_test_case():
+            def date_as_string(d: Tuple[int, Optional[int], Optional[int]]) -> str:
+                assert d[0] > 1000
+                parts = [f'{it:0>2}' for it in d if it is not None]
+
+                if random() < .5:  # амереканский формат
+                    return '.'.join(parts)
+                else:  # российский формат
+                    return '.'.join(reversed(parts))
+
+            def date_to_tuple_with_transform(d: date) -> Tuple[Tuple[int, Optional[int], Optional[int]], date]:
+                if random() < .15:
+                    return (d.year, None, None), date(d.year, 1, 1)
+                elif random() < .15:
+                    return (d.year, d.month, None), date(d.year, d.month, 1)
+                else:
+                    return (d.year, d.month, d.day), d
+
+            begin = date.fromtimestamp(randint(0, 10**10))
+            end = date.fromtimestamp(randint(10**5, 10**11))
+
+            begin_tuple, begin = date_to_tuple_with_transform(begin)
+            end_tuple, end = date_to_tuple_with_transform(end)
+
+            return (
+                date_as_string(begin_tuple) + '-' + date_as_string(end_tuple),
+                Period(begin, end) if end > begin else ValueError
+            )
+
+        for _ in range(100):
+            arg, res = random_test_case()
+            if type(res) is type and issubclass(res, Exception):
+                with raises(res):
+                    Period.from_string(arg)
+            else:
+                assert Period.from_string(arg) == res
