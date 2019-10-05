@@ -1,5 +1,5 @@
 from pytest import raises
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from random import randint, choice, random
 from database import Period
 from typing import *
@@ -66,15 +66,29 @@ class TestPeriod:
                     return (d.year, d.month, d.day), d
 
             begin = date.fromtimestamp(randint(0, 10**10))
-            end = date.fromtimestamp(randint(10**5, 10**11))
-
             begin_tuple, begin = date_to_tuple_with_transform(begin)
-            end_tuple, end = date_to_tuple_with_transform(end)
+            if random() < .2:
+                # Период размером в год, месяц или день
+                if begin_tuple[1] is None:
+                    end = datetime(begin.year + 1, 1, 1)
+                elif begin_tuple[2] is None:
+                    tmp = begin.month == 12
+                    end = datetime(begin.year + tmp, 1 if tmp else begin.month + 1, 1)
+                else:
+                    end = begin + timedelta(days=1)
 
-            return (
-                date_as_string(begin_tuple) + '-' + date_as_string(end_tuple),
-                Period(begin, end) if end > begin else ValueError
-            )
+                return (
+                    date_as_string(begin_tuple),
+                    Period(begin, end)
+                )
+            else:
+                end = date.fromtimestamp(randint(10**6, 10**11))
+                end_tuple, end = date_to_tuple_with_transform(end)
+
+                return (
+                    date_as_string(begin_tuple) + '-' + date_as_string(end_tuple),
+                    Period(begin, end) if end > begin else ValueError
+                )
 
         for _ in range(100):
             arg, res = random_test_case()
