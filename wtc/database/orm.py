@@ -4,7 +4,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session as SessionType, sessionmaker
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import *
 
 Base = declarative_base()
@@ -50,22 +50,23 @@ class Period(Base):
     def from_string(s: str) -> 'Period':
         assert s
 
-        dates = s.split('-')
+        dates: List[Union[str, datetime]] = s.split('-')
         if len(dates) > 2:
             raise ValueError('неверный формат периода')
 
         date_reg = re.compile(r'(?:(?:(?P<day>\d{2})\.)?(?P<month>\d{2})\.)?(?P<year>\d{4})')
         us_like_date_reg = re.compile(r'(?P<year>\d{4})?(?:\.(?P<month>\d{2})(?:\.(?P<day>\d{2}))?)?')
 
-        def parse_date(date_string: str) -> Optional[datetime]:
+        def parse_date(date_string: str) -> Optional[Tuple[datetime, int]]:
             """
             :param date_string: строка с единственной датой
             :param op: add если надо взять следующий день, sub, если предыдущий, по-умолчанию точно указаный
-            :return: представление указаной даты в виде обьекта datetime
+            :return: представление указаной даты в виде обьекта datetime и "ранг" даты, равный 0, 1(если день не указан)
+            или 2(если месяц не указан)
             """
 
             if date_string == 'now':
-                return datetime.now()
+                return datetime.now(), 0
 
             m = re.fullmatch(date_reg, date_string)
             if not m:
@@ -77,12 +78,19 @@ class Period(Base):
                 int(m.group('year')),
                 int(m.group('month')) if m.group('month') else 1,
                 int(m.group('day')) if m.group('day') else 1
-            )
+            ), 0 if m.group('day') is not None else (1 if m.group('month') is not None else 2)
 
         if len(dates) == 2:
-            dates = list(map(parse_date, dates))
+            dates = [it[0] for it in map(parse_date, dates)]
         else:
-            dates[0] = parse_date(dates[0])
+            dates[0], rang = parse_date(dates[0])
+            if rang == 0:
+                dates.append(dates[0] + timedelta(days=1))
+            elif rang == 1:
+                tmp = dates[0].month == 12
+                dates.append(datetime(dates[0].year + tmp, 1 if tmp else dates[0].month + 1, 1))
+            elif rang == 2:
+                dates.append(datetime(dates[0].year + 1, 1, 1))
 
         if not all(dates):
             raise ValueError('неверный формат даты')
