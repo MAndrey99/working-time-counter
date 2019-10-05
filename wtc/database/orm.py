@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session as SessionType, sessionmaker
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime, date
-from operator import add, sub
 from typing import *
 
 Base = declarative_base()
@@ -42,7 +41,7 @@ class Period(Base):
         date_reg = re.compile(r'(?:(?:(?P<day>\d{2})\.)?(?P<month>\d{2})\.)?(?P<year>\d{4})')
         us_like_date_reg = re.compile(r'(?P<year>\d{4})?(?:\.(?P<month>\d{2})(?:\.(?P<day>\d{2}))?)?')
 
-        def parse_date(date_string: str, op: Callable[[int, int], int] = lambda a, b: a) -> Optional[datetime]:
+        def parse_date(date_string: str) -> Optional[datetime]:
             """
             :param date_string: строка с единственной датой
             :param op: add если надо взять следующий день, sub, если предыдущий, по-умолчанию точно указаный
@@ -60,12 +59,12 @@ class Period(Base):
 
             return datetime(
                 int(m.group('year')),
-                op(int(m.group('month') or 0), int(m.group('day') is not None)),
-                op(int(m.group('day') or 0), 1)
+                int(m.group('month')) if m.group('month') else 1,
+                int(m.group('day')) if m.group('day') else 1
             )
 
         if len(dates) == 2:
-            dates = tuple(map(parse_date, dates, (sub, add)))
+            dates = list(map(parse_date, dates))
             assert dates[1] > dates[0]
         else:
             dates[0] = parse_date(dates[0])
