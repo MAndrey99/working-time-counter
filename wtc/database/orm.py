@@ -19,13 +19,22 @@ class Period(Base):
     end = Column(DateTime)
 
     def __init__(self, begin: Union[int, float, datetime, date], end: Optional[Union[int, float, datetime, date]] = None):
-        assert not end or end > begin
-
         if type(begin) in (int, float):
             begin = datetime.fromtimestamp(begin)
+        else:
+            if not hasattr(begin, 'timestamp'):
+                assert hasattr(begin, 'toordinal')
+                begin = datetime.fromordinal(begin.toordinal())
 
         if type(end) in (int, float):
             end = datetime.fromtimestamp(end)
+        else:
+            if end:
+                if not hasattr(end, 'timestamp'):
+                    assert hasattr(end, 'toordinal')
+                    end = datetime.fromordinal(end.toordinal())
+
+                assert end > begin
 
         self.begin = begin
         self.end = end
