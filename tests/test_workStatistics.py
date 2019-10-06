@@ -51,10 +51,10 @@ class TestWorkStatistics:
 
     def test_period_stat(self):
         def step_generator(begin: datetime) -> Iterable[datetime]:
-            t = begin + timedelta(seconds=randint(2, 15))
+            t = begin + timedelta(seconds=randint(1, 60*60))
             while t <= datetime.now():
                 yield t
-                t += timedelta(seconds=randint(100, 2000))
+                t += timedelta(seconds=randint(60*60, 10*24*60*60))  # переходим далее на час-10 деней
 
         def check_for(ws: WorkStatistics):
             begin = datetime.now() - timedelta(days=365)
