@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from random import randint
 from math import isclose
 from typing import *
+from multiprocessing import Process
 
 from .db_menenger import DatabaseManager
 from database import Period, init as initORM
@@ -55,12 +56,20 @@ class TestWorkStatistics:
                 yield t
                 t += timedelta(seconds=randint(100, 2000))
 
-        for ws in (WorkStatistics.from_db(), WorkStatistics.from_db(cache_ymwd=False)):
+        def check_for(ws: WorkStatistics):
             begin = datetime.now() - timedelta(days=365)
             for it in step_generator(begin):
                 start = datetime.fromtimestamp(randint(int(begin.timestamp()), int(it.timestamp()) - 1))
                 ps = ws.period_stat(Period(start, it))
                 assert isclose(ps.total_seconds(), self.database_manager.get_work_time_in_period(Period(start, it)))
+
+        p1 = Process(target=check_for, args=(WorkStatistics.from_db(), ))
+        p1.start()
+        p2 = Process(target=check_for, args=(WorkStatistics.from_db(cache_ymwd=False), ))
+        p2.start()
+        p1.join()
+        p2.join()
+        assert p1.exitcode == p2.exitcode == 0
 
     def test_update(self):
         now = datetime.now()
