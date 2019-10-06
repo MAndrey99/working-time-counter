@@ -10,7 +10,7 @@ from .db_menenger import DatabaseManager
 from database import Period, init as initORM
 from work_statistics import WorkStatistics
 
-DATABASE = 'sqlite:///tests/testdb.sqlite'
+DATABASE = 'sqlite:///testdb.sqlite'
 
 
 @freeze_time('2019-09-25 15:41:45.000000')
