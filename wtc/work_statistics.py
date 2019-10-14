@@ -7,11 +7,10 @@ logger = logging.getLogger('wtc.WorkStatistics')
 
 
 class WorkStatistics:
-    __slots__ = ('_periods', '_cache_ymwd', '_year', '_month', '_week', '_day', '_last_update')
+    __slots__ = ('_cache_ymwd', '_year', '_month', '_week', '_day', '_last_update')
 
     def __init__(self):
         self._last_update: Optional[datetime] = None  # время последнего обновления данных из бд
-        self._periods: Optional[List[Period]] = None  # список периодов работы за максимальный рассматриваемый срок
         self._cache_ymwd: bool = False  # используется ли кэширование рассчитанного отработаного времени
         self._year: Optional[int] = None  # количество отработанного времени в году (сек)
         self._month: Optional[int] = None  # количество отработанного времени в месяце (сек)
@@ -19,7 +18,7 @@ class WorkStatistics:
         self._day: Optional[int] = None  # количество отработанного времени в дне (сек)
 
     @staticmethod
-    def from_db(*, cache_ymwd=True, cache_data=False) -> 'WorkStatistics':
+    def from_db(*, cache_ymwd=True) -> 'WorkStatistics':
         """
         загрузка данных из базы и создание экземпляра WorkStatistics
 
@@ -40,7 +39,7 @@ class WorkStatistics:
         if cache_ymwd:
             y, m, w, d = get_ymwd_begins_timestamps()
 
-            def mk_period(begin: datetime, end: datetime):
+            def check_period(begin: datetime, end: datetime):
                 nonlocal year, month, week, day, last_update
                 assert end > begin
 
@@ -54,28 +53,20 @@ class WorkStatistics:
                 month += max(end_timestamp - max(begin_timestamp, m), 0)
                 week += max(end_timestamp - max(begin_timestamp, w), 0)
                 day += max(end_timestamp - max(begin_timestamp, d), 0)
-
-                return Period(begin, end)
         else:
-            def mk_period(begin: datetime, end: datetime):
+            def check_period(begin: datetime, end: datetime):
                 nonlocal last_update
                 assert end > begin
                 assert end <= datetime.now()
                 assert last_update is None or last_update < begin
                 last_update = end
-                return Period(begin, end)
 
         res = WorkStatistics()
         with new_session() as session:
-            if cache_data:
-                res._periods = []
-
             for period in session.query(Period) \
                     .filter(Period.end > datetime(datetime.now().year, 1, 1).timestamp()) \
                     .order_by(Period.begin).all():
-                period = mk_period(period.begin, period.end)  # для возможности кэшировать день, месяц, год
-                if cache_data:
-                    res._periods.append(period)
+                check_period(period.begin, period.end)  # сдесь кэшируем день, месяц, год
 
         res._last_update = last_update
 
@@ -100,25 +91,15 @@ class WorkStatistics:
             p = Period(p.begin, datetime.now())
 
         assert p.end > p.begin
-
-        if self._periods is not None:
+        with new_session() as session:
             return timedelta(seconds=sum(
                 min(p.end, it.end).timestamp() - max(p.begin, it.begin).timestamp()
                 if p.end is not None
                 else it.end.timestamp() - max(p.begin, it.begin).timestamp()
-                for it in self._periods
-                if it.end > p.begin and it.begin < p.end
+                for it in session.query(Period)
+                    .filter((Period.end > p.begin) & (p.end > Period.begin))
+                    .order_by(Period.begin).all()
             ))
-        else:
-            with new_session() as session:
-                return timedelta(seconds=sum(
-                    min(p.end, it.end).timestamp() - max(p.begin, it.begin).timestamp()
-                    if p.end is not None
-                    else it.end.timestamp() - max(p.begin, it.begin).timestamp()
-                    for it in session.query(Period)
-                        .filter((Period.end > p.begin) & (p.end > Period.begin))
-                        .order_by(Period.begin).all()
-                ))
 
     def update(self):
         """
@@ -147,7 +128,7 @@ class WorkStatistics:
                         or today.day - self._last_update.day >= 7:
                     self._week = 0
 
-            def mk_period(begin: datetime, end: datetime) -> Period:
+            def check_period(begin: datetime, end: datetime):
                 """
                 создает промежуток времени, обновляя зарание вычисленные значения активного времени
                 """
@@ -164,18 +145,14 @@ class WorkStatistics:
                 self._month += max(end_timestamp - max(begin_timestamp, m), 0)
                 self._week += max(end_timestamp - max(begin_timestamp, w), 0)
                 self._day += max(end_timestamp - max(begin_timestamp, d), 0)
-
-                return Period(begin, end)
         else:
-            mk_period = Period
+            check_period = Period
 
         with new_session() as session:
             for period in session.query(Period) \
                     .filter(Period.end > self._last_update) \
                     .order_by(Period.begin).all():
-                period = mk_period(max(period.begin, self._last_update), period.end)
-                if self._periods is not None:
-                    self._periods.append(period)
+                check_period(max(period.begin, self._last_update), period.end)
 
     @property
     def year(self) -> timedelta:

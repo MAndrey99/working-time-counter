@@ -29,6 +29,7 @@ class Period(Base):
 
         if type(end) in (int, float):
             end = datetime.fromtimestamp(end)
+            assert end > begin
         else:
             if end:
                 if not hasattr(end, 'timestamp'):
