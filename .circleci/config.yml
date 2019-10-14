@@ -4,6 +4,12 @@ jobs:
     docker:
       - image: circleci/python:3.7
 
+    branches:
+      only:
+        - master
+        - develop
+        - /rc-.*/
+
     working_directory: ~/wtc
 
     steps:
