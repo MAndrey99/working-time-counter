@@ -13,17 +13,17 @@ def main_loop():
     begin = datetime.now()
     sleep(MINIMUM_ACTIVE_TIME)
 
-    session = new_session()
-    session.add(Period(begin, None))
-    logger.info('written new entry')
+    with new_session() as session:
+        session.add(Period(begin, None))
+        logger.info('written new entry')
 
-    while True:
-        try:
-            sleep(UPDATE_DELAY)
-        finally:
-            session.query(Period).filter(Period.begin == begin).update({'end': datetime.now()})
-            session.commit()
-            logger.info('entry updated')
+        while True:
+            try:
+                sleep(UPDATE_DELAY)
+            finally:
+                session.query(Period).filter(Period.begin == begin).update({'end': datetime.now()})
+                session.commit()
+                logger.info('entry updated')
 
 
 def start():

@@ -3,8 +3,8 @@ from freezegun import freeze_time
 from datetime import datetime, timedelta
 from random import randint
 from math import isclose
-from typing import *
 from multiprocessing import Process
+from typing import *
 
 from .db_menenger import DatabaseManager
 from database import Period, init as initORM
@@ -32,17 +32,17 @@ class TestWorkStatistics:
                 assert not ws.__getattribute__(it)
 
     def test_from_db(self):
-        with patch('work_statistics.new_session', return_value=self.database_manager.session):
+        with patch('work_statistics.new_session', side_effect=self.database_manager.new_session_context):
             ws = WorkStatistics.from_db()
 
         assert ws._cache_ymwd
         assert ws._day and ws._week and ws._month and ws._year
         assert isclose(ws._day, ws.day.total_seconds()) \
-               and isclose(ws._week, ws.week.total_seconds()) \
-               and isclose(ws._month, ws.month.total_seconds()) \
-               and isclose(ws._year, ws.year.total_seconds())
+            and isclose(ws._week, ws.week.total_seconds()) \
+            and isclose(ws._month, ws.month.total_seconds()) \
+            and isclose(ws._year, ws.year.total_seconds())
 
-        with patch('work_statistics.new_session', return_value=self.database_manager.session):
+        with patch('work_statistics.new_session', side_effect=self.database_manager.new_session_context):
             ws = WorkStatistics.from_db(cache_ymwd=False)
 
         assert not ws._cache_ymwd
@@ -81,15 +81,13 @@ class TestWorkStatistics:
         # проверяем девалидацию и пересчет кэша
         ws = WorkStatistics.from_db()
         last_cache = {
-                "day": ws._day,
-                "week": ws._week,
-                "month": ws._month,
-                "year": ws._year
+            "day": ws._day,
+            "week": ws._week,
+            "month": ws._month,
+            "year": ws._year
         }
 
-        with self.database_manager.new_session_context() as session,\
-                patch('wtc.database.new_session', return_value=session):
-
+        with patch('wtc.database.new_session', side_effect=self.database_manager.new_session_context):
             with freeze_time(day_end):
                 ws.update()
                 assert ws.day.total_seconds() == ws._day == 0
@@ -130,7 +128,19 @@ class TestWorkStatistics:
         year_begin = datetime(now.year, 1, 1)
 
         for ws in (WorkStatistics.from_db(), WorkStatistics.from_db(cache_ymwd=False)):
-            assert isclose(ws.day.total_seconds(), self.database_manager.get_work_time_in_period(Period(day_begin, now)))
-            assert isclose(ws.week.total_seconds(), self.database_manager.get_work_time_in_period(Period(week_begin, now)))
-            assert isclose(ws.month.total_seconds(), self.database_manager.get_work_time_in_period(Period(month_begin, now)))
-            assert isclose(ws.year.total_seconds(), self.database_manager.get_work_time_in_period(Period(year_begin, now)))
+            assert isclose(
+                ws.day.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(day_begin, now))
+            )
+            assert isclose(
+                ws.week.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(week_begin, now))
+            )
+            assert isclose(
+                ws.month.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(month_begin, now))
+            )
+            assert isclose(
+                ws.year.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(year_begin, now))
+            )

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session as SessionType, sessionmaker
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime, date, timedelta
+from contextlib import contextmanager
 from typing import *
 
 Base = declarative_base()
@@ -119,8 +120,11 @@ def create_tables():
     Base.metadata.create_all(engine)
 
 
-def new_session() -> SessionType:
+@contextmanager
+def new_session() -> ContextManager[SessionType]:
     if Session is not None:
-        return Session()
+        s: SessionType = Session()
+        yield s
+        s.close()
     else:
         raise ValueError("orm не инициализарована")

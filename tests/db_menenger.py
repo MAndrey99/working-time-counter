@@ -5,19 +5,21 @@ from database import new_session, Session, Period
 
 
 class DatabaseManager:
-    __slots__ = ("session", )
+    __slots__ = ("session", "_context")
 
     def __init__(self):
-        self.session = new_session()
+        self._context = new_session()
+        self.session = self._context.__enter__()
 
     def close_connection(self):
         self.session.rollback()
+        self._context.__exit__(None, None, None)
 
     @contextmanager
     def new_session_context(self) -> ContextManager[Session]:
-        session = new_session()
-        yield session
-        session.rollback()
+        with new_session() as session:
+            yield session
+            session.rollback()
 
     def get_work_time_in_period(self, p: Period) -> int:
         return sum(
