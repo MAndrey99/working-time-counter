@@ -18,8 +18,9 @@ class TestWorkStatistics:
     __slots__ = ("database_manager", )
 
     def setup(self):
-        initORM(DATABASE)
-        self.database_manager = DatabaseManager()
+        import database.orm as db
+        self.database_manager = DatabaseManager(DATABASE)
+        db.Session = self.database_manager.Session
 
     def teardown(self):
         self.database_manager.close_connection()

@@ -1,19 +1,24 @@
 from contextlib import contextmanager
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from typing import *
 
 from database import new_session, Session, Period
 
 
 class DatabaseManager:
-    __slots__ = ("session", "_context")
+    __slots__ = ("Session", "session", "_transaction", "_connection")
 
-    def __init__(self):
-        self._context = new_session()
-        self.session = self._context.__enter__()
+    def __init__(self, database: str):
+        # используется транзакция вне orm
+        self._connection = create_engine(database).connect()
+        self._transaction = self._connection.begin()
+        self.Session = sessionmaker(bind=self._connection)
+        self.session = self.Session()
 
     def close_connection(self):
-        self.session.rollback()
-        self._context.__exit__(None, None, None)
+        self._transaction.rollback()
+        self._connection.close()
 
     @contextmanager
     def new_session_context(self) -> ContextManager[Session]:
