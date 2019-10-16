@@ -139,7 +139,6 @@ class WorkStatistics:
                 end_timestamp = end.timestamp()
                 assert end_timestamp < datetime.now().timestamp()
                 assert self._last_update <= begin
-                self._last_update = end
 
                 self._year += max(end_timestamp - max(begin_timestamp, y), 0)
                 self._month += max(end_timestamp - max(begin_timestamp, m), 0)
@@ -153,6 +152,8 @@ class WorkStatistics:
                     .filter(Period.end > self._last_update) \
                     .order_by(Period.begin).all():
                 check_period(max(period.begin, self._last_update), period.end)
+
+        self._last_update = datetime.now()
 
     @property
     def year(self) -> timedelta:
