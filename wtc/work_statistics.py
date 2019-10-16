@@ -18,66 +18,48 @@ class WorkStatistics:
         self._day: Optional[int] = None  # количество отработанного времени в дне (сек)
 
     @staticmethod
-    def from_db(*, cache_ymwd=True) -> 'WorkStatistics':
+    def from_db() -> 'WorkStatistics':
         """
-        загрузка данных из базы и создание экземпляра WorkStatistics
-
-        :param db: имя/путь базы
-        :param cache_ymwd: требуется ли кэшировать статистику за год, месяц, неделю, день
-        :return: WorkStatistics со считанной из бд информацией
+        создание экземпляра WorkStatistics с кжшированными данными из базы
         """
 
-        mk_period: Callable[[datetime, datetime], Period]
         year = 0
         month = 0
         week = 0
         day = 0
         last_update: Optional[datetime] = None
+        y, m, w, d = get_ymwd_begins_timestamps()
 
-        if cache_ymwd:
-            y, m, w, d = get_ymwd_begins_timestamps()
+        # кэшируем данные за день, месяц, год
+        with new_session() as session:
+            for period in session.query(Period) \
+                    .filter(Period.end > datetime(datetime.now().year, 1, 1).timestamp()) \
+                    .order_by(Period.begin).all():
+                assert period.end > period.begin
 
-            def check_period(begin: datetime, end: datetime):
-                nonlocal year, month, week, day, last_update
-                assert end > begin
-
-                begin_timestamp = begin.timestamp()
-                end_timestamp = end.timestamp()
+                begin_timestamp = period.begin.timestamp()
+                end_timestamp = period.end.timestamp()
                 assert end_timestamp <= datetime.now().timestamp()
-                assert last_update is None or last_update <= begin
-                last_update = end
+                assert last_update is None or last_update <= period.begin
+                last_update = period.end
 
                 year += max(end_timestamp - max(begin_timestamp, y), 0)
                 month += max(end_timestamp - max(begin_timestamp, m), 0)
                 week += max(end_timestamp - max(begin_timestamp, w), 0)
                 day += max(end_timestamp - max(begin_timestamp, d), 0)
-        else:
-            def check_period(begin: datetime, end: datetime):
-                nonlocal last_update
-                assert end > begin
-                assert end <= datetime.now()
-                assert last_update is None or last_update < begin
-                last_update = end
 
         res = WorkStatistics()
-        with new_session() as session:
-            for period in session.query(Period) \
-                    .filter(Period.end > datetime(datetime.now().year, 1, 1).timestamp()) \
-                    .order_by(Period.begin).all():
-                check_period(period.begin, period.end)  # сдесь кэшируем день, месяц, год
-
         res._last_update = last_update
-
-        if cache_ymwd:
-            res._cache_ymwd = True
-            res._year = year
-            res._month = month
-            res._week = week
-            res._day = day
+        res._cache_ymwd = True
+        res._year = year
+        res._month = month
+        res._week = week
+        res._day = day
 
         return res
 
-    def period_stat(self, p: Period) -> timedelta:
+    @staticmethod
+    def period_stat(p: Period) -> timedelta:
         """
         активное время за произвольный промежуток времени
 
@@ -104,52 +86,44 @@ class WorkStatistics:
         подгружает при необходимости новые данные из базы и обновляет изначально вычесленные значения если они были
         """
 
+        if not self._cache_ymwd:
+            return
+
         assert self._last_update
 
-        if self._cache_ymwd:
-            y, m, w, d = get_ymwd_begins_timestamps()
-            today = datetime.fromtimestamp(d)
+        y, m, w, d = get_ymwd_begins_timestamps()
+        today = datetime.fromtimestamp(d)
 
-            if today.year != self._last_update.year:
-                self._year = 0
-                self._month = 0
+        if today.year != self._last_update.year:
+            self._year = 0
+            self._month = 0
+            self._week = 0
+            self._day = 0
+        elif today.month != self._last_update.month:
+            self._month = 0
+            self._week = 0
+            self._day = 0
+        elif today.day != self._last_update.day:
+            self._day = 0
+
+            if today.weekday() < self._last_update.weekday() \
+                    or today.day - self._last_update.day >= 7:
                 self._week = 0
-                self._day = 0
-            elif today.month != self._last_update.month:
-                self._month = 0
-                self._week = 0
-                self._day = 0
-            elif today.day != self._last_update.day:
-                self._day = 0
-
-                if today.weekday() < self._last_update.weekday() \
-                        or today.day - self._last_update.day >= 7:
-                    self._week = 0
-
-            def check_period(begin: datetime, end: datetime):
-                """
-                создает промежуток времени, обновляя зарание вычисленные значения активного времени
-                """
-
-                assert end > begin
-
-                begin_timestamp = begin.timestamp()
-                end_timestamp = end.timestamp()
-                assert end_timestamp < datetime.now().timestamp()
-                assert self._last_update <= begin
-
-                self._year += max(end_timestamp - max(begin_timestamp, y), 0)
-                self._month += max(end_timestamp - max(begin_timestamp, m), 0)
-                self._week += max(end_timestamp - max(begin_timestamp, w), 0)
-                self._day += max(end_timestamp - max(begin_timestamp, d), 0)
-        else:
-            check_period = Period
 
         with new_session() as session:
             for period in session.query(Period) \
                     .filter(Period.end > self._last_update) \
                     .order_by(Period.begin).all():
-                check_period(max(period.begin, self._last_update), period.end)
+                period.begin = max(period.begin, self._last_update)
+                begin_timestamp = period.begin.timestamp()
+                end_timestamp = period.end.timestamp()
+                assert end_timestamp < datetime.now().timestamp()
+                assert self._last_update <= period.begin
+
+                self._year += max(end_timestamp - max(begin_timestamp, y), 0)
+                self._month += max(end_timestamp - max(begin_timestamp, m), 0)
+                self._week += max(end_timestamp - max(begin_timestamp, w), 0)
+                self._day += max(end_timestamp - max(begin_timestamp, d), 0)
 
         self._last_update = datetime.now()
 

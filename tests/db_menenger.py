@@ -23,8 +23,9 @@ class DatabaseManager:
     @contextmanager
     def new_session_context(self) -> ContextManager[Session]:
         with new_session() as session:
+            transaction = session.begin(subtransactions=True)
             yield session
-            session.rollback()
+            transaction.rollback()
 
     def get_work_time_in_period(self, p: Period) -> int:
         return sum(

@@ -3,11 +3,13 @@ from freezegun import freeze_time
 from datetime import datetime, timedelta
 from random import randint
 from math import isclose
-from multiprocessing import Process
+from pickle import dumps
+from contextlib import contextmanager
+from copy import deepcopy
 from typing import *
 
 from .db_menenger import DatabaseManager
-from database import Period, init as initORM
+from database import Period
 from work_statistics import WorkStatistics
 
 DATABASE = 'sqlite:///testdb.sqlite'
@@ -33,8 +35,9 @@ class TestWorkStatistics:
                 assert not ws.__getattribute__(it)
 
     def test_from_db(self):
-        with patch('work_statistics.new_session', side_effect=self.database_manager.new_session_context):
+        with patch('work_statistics.new_session', side_effect=self.database_manager.new_session_context) as mock:
             ws = WorkStatistics.from_db()
+            mock.assert_called()
 
         assert ws._cache_ymwd
         assert ws._day and ws._week and ws._month and ws._year
@@ -42,13 +45,6 @@ class TestWorkStatistics:
             and isclose(ws._week, ws.week.total_seconds()) \
             and isclose(ws._month, ws.month.total_seconds()) \
             and isclose(ws._year, ws.year.total_seconds())
-
-        with patch('work_statistics.new_session', side_effect=self.database_manager.new_session_context):
-            ws = WorkStatistics.from_db(cache_ymwd=False)
-
-        assert not ws._cache_ymwd
-        assert ws._day is None and ws._week is None and ws._month is None and ws._year is None
-        assert ws.year >= ws.month >= ws.week >= ws.day
 
     def test_period_stat(self):
         def step_generator(begin: datetime) -> Iterable[datetime]:
@@ -64,13 +60,7 @@ class TestWorkStatistics:
                 ps = ws.period_stat(Period(start, it))
                 assert isclose(ps.total_seconds(), self.database_manager.get_work_time_in_period(Period(start, it)))
 
-        p1 = Process(target=check_for, args=(WorkStatistics.from_db(), ))
-        p1.start()
-        p2 = Process(target=check_for, args=(WorkStatistics.from_db(cache_ymwd=False), ))
-        p2.start()
-        p1.join()
-        p2.join()
-        assert p1.exitcode == p2.exitcode == 0
+        check_for(WorkStatistics.from_db())
 
     def test_update(self):
         now = datetime.now()
@@ -79,7 +69,6 @@ class TestWorkStatistics:
         month_end = datetime(now.year, now.month + 1, 1) if now.month != 12 else datetime(now.year + 1, now.month, 1)
         year_end = datetime(now.year + 1, 1, 1)
 
-        # проверяем девалидацию и пересчет кэша
         ws = WorkStatistics.from_db()
         last_cache = {
             "day": ws._day,
@@ -88,9 +77,16 @@ class TestWorkStatistics:
             "year": ws._year
         }
 
-        with patch('wtc.database.new_session', side_effect=self.database_manager.new_session_context):
-            with freeze_time(day_end):
-                ws.update()
+        with self.database_manager.new_session_context() as session:
+            @contextmanager
+            def session_context(): yield session
+
+            with patch('work_statistics.new_session', side_effect=session_context) as mock:
+                with freeze_time(day_end):
+                    ws.update()
+                    mock.assert_called()
+
+                assert ws._last_update == day_end
                 assert ws.day.total_seconds() == ws._day == 0
                 if day_end < week_end:
                     assert isclose(ws.week.total_seconds(), ws._week) and isclose(ws._week, last_cache['week'])
@@ -98,28 +94,52 @@ class TestWorkStatistics:
                     assert isclose(ws.month.total_seconds(), ws._month) and isclose(ws._month, last_cache['month'])
                     assert isclose(ws.year.total_seconds(), ws._year) and isclose(ws._year, last_cache['year'])
 
-            with freeze_time(week_end):
-                ws.update()
-                assert ws.day.total_seconds() == ws._day == 0
-                assert ws.week.total_seconds() == ws._week == 0
-                if week_end < month_end:
-                    assert isclose(ws.month.total_seconds(), ws._month) and isclose(ws._month, last_cache['month'])
-                    assert isclose(ws.year.total_seconds(), ws._year) and isclose(ws._year, last_cache['year'])
+                now = day_end + timedelta(hours=12)
+                with freeze_time(now):
+                    # проводим добавление данных в базу и проверяем
+                    begin = randint(int(day_end.timestamp()), int(day_end.timestamp()) + 10000)
+                    end = randint(begin, int(now.timestamp()))
+                    length = end - begin
+                    last_ws = deepcopy(ws)
 
-            with freeze_time(month_end):
-                ws.update()
-                assert ws.day.total_seconds() == ws._day == 0
-                assert ws.week.total_seconds() == ws._week == 0
-                assert ws.month.total_seconds() == ws._month == 0
+                    t = session.begin_nested()
+                    try:
+                        session.add(Period(begin, end))
+                        ws.update()
+                    finally:
+                        t.rollback()
 
-            with freeze_time(year_end):
-                ws.update()
-                assert ws.day.total_seconds() == ws._day == 0
-                assert ws.week.total_seconds() == ws._week == 0
-                assert ws.month.total_seconds() == ws._month == 0
-                assert ws.year.total_seconds() == ws._year == 0
+                    assert ws._last_update == now
+                    assert isclose(ws.day.total_seconds(), length)
 
-        # TODO: смоделировать добавление данных в базу и реализовать проверку без кэширования
+                    ws = last_ws
+
+                with freeze_time(week_end):
+                    ws.update()
+                    assert ws.day.total_seconds() == ws._day == 0
+                    assert ws.week.total_seconds() == ws._week == 0
+                    if week_end < month_end:
+                        assert isclose(ws.month.total_seconds(), ws._month) and isclose(ws._month, last_cache['month'])
+                        assert isclose(ws.year.total_seconds(), ws._year) and isclose(ws._year, last_cache['year'])
+
+                with freeze_time(month_end):
+                    ws.update()
+                    assert ws.day.total_seconds() == ws._day == 0
+                    assert ws.week.total_seconds() == ws._week == 0
+                    assert ws.month.total_seconds() == ws._month == 0
+
+                with freeze_time(year_end):
+                    ws.update()
+                    assert ws.day.total_seconds() == ws._day == 0
+                    assert ws.week.total_seconds() == ws._week == 0
+                    assert ws.month.total_seconds() == ws._month == 0
+                    assert ws.year.total_seconds() == ws._year == 0
+
+        # проверяем, что без кэша update ничего не делает
+        ws = WorkStatistics()
+        last = dumps(ws, protocol=4)
+        ws.update()
+        assert last == dumps(ws, protocol=4)
 
     def test_ymwd(self):
         now = datetime.now()
@@ -128,20 +148,20 @@ class TestWorkStatistics:
         month_begin = datetime(now.year, now.month, 1)
         year_begin = datetime(now.year, 1, 1)
 
-        for ws in (WorkStatistics.from_db(), WorkStatistics.from_db(cache_ymwd=False)):
-            assert isclose(
-                ws.day.total_seconds(),
-                self.database_manager.get_work_time_in_period(Period(day_begin, now))
-            )
-            assert isclose(
-                ws.week.total_seconds(),
-                self.database_manager.get_work_time_in_period(Period(week_begin, now))
-            )
-            assert isclose(
-                ws.month.total_seconds(),
-                self.database_manager.get_work_time_in_period(Period(month_begin, now))
-            )
-            assert isclose(
-                ws.year.total_seconds(),
-                self.database_manager.get_work_time_in_period(Period(year_begin, now))
-            )
+        ws = WorkStatistics.from_db()
+        assert isclose(
+            ws.day.total_seconds(),
+            self.database_manager.get_work_time_in_period(Period(day_begin, now))
+        )
+        assert isclose(
+            ws.week.total_seconds(),
+            self.database_manager.get_work_time_in_period(Period(week_begin, now))
+        )
+        assert isclose(
+            ws.month.total_seconds(),
+            self.database_manager.get_work_time_in_period(Period(month_begin, now))
+        )
+        assert isclose(
+            ws.year.total_seconds(),
+            self.database_manager.get_work_time_in_period(Period(year_begin, now))
+        )
