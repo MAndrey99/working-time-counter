@@ -8,7 +8,7 @@ import daemon
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = 'sqlite:///' + str(APP_ROOT / 'stats.sqlite')
 LOGS_DIR = APP_ROOT / 'logs'
-VERSION = 'v1.0'
+VERSION = 'v1.0.1'
 STATISTIC_UPDATE_DELAY = 10
 logger: logging.Logger
 main: Callable
