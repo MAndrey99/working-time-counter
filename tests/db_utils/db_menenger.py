@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from typing import *
@@ -28,6 +29,9 @@ class DatabaseManager:
             transaction.rollback()
 
     def get_work_time_in_period(self, p: Period) -> int:
+        if p.end is None:
+            p = Period(p.begin, datetime.now())
+
         return sum(
             (min(it.end, p.end) - max(it.begin, p.begin)).total_seconds()
             for it in self.session.query(Period).filter(

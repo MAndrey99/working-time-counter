@@ -1,7 +1,7 @@
 from unittest.mock import patch
 from freezegun import freeze_time
 from datetime import datetime, timedelta
-from random import randint
+from random import randint, random
 from math import isclose
 from pickle import dumps
 from contextlib import contextmanager
@@ -47,18 +47,24 @@ class TestWorkStatistics:
             and isclose(ws._year, ws.year.total_seconds())
 
     def test_period_stat(self):
+        now = datetime.now()
+
         def step_generator(begin: datetime) -> Iterable[datetime]:
             t = begin + timedelta(seconds=randint(1, 60*60))
-            while t <= datetime.now():
+            while t <= now:
                 yield t
                 t += timedelta(seconds=randint(60*60, 10*24*60*60))  # переходим далее на час-10 деней
+                if random() < .1:
+                    yield None
 
         def check_for(ws: WorkStatistics):
             begin = datetime.now() - timedelta(days=365)
             for it in step_generator(begin):
-                start = datetime.fromtimestamp(randint(int(begin.timestamp()), int(it.timestamp()) - 1))
-                ps = ws.period_stat(Period(start, it))
-                assert isclose(ps.total_seconds(), self.database_manager.get_work_time_in_period(Period(start, it)))
+                start = datetime.fromtimestamp(randint(int(begin.timestamp()), int((it or now).timestamp()) - 1))
+                assert isclose(
+                    ws.period_stat(Period(start, it)).total_seconds(),
+                    self.database_manager.get_work_time_in_period(Period(start, it))
+                )
 
         check_for(WorkStatistics.from_db())
 
@@ -148,20 +154,20 @@ class TestWorkStatistics:
         month_begin = datetime(now.year, now.month, 1)
         year_begin = datetime(now.year, 1, 1)
 
-        ws = WorkStatistics.from_db()
-        assert isclose(
-            ws.day.total_seconds(),
-            self.database_manager.get_work_time_in_period(Period(day_begin, now))
-        )
-        assert isclose(
-            ws.week.total_seconds(),
-            self.database_manager.get_work_time_in_period(Period(week_begin, now))
-        )
-        assert isclose(
-            ws.month.total_seconds(),
-            self.database_manager.get_work_time_in_period(Period(month_begin, now))
-        )
-        assert isclose(
-            ws.year.total_seconds(),
-            self.database_manager.get_work_time_in_period(Period(year_begin, now))
-        )
+        for ws in (WorkStatistics.from_db(), WorkStatistics()):
+            assert isclose(
+                ws.day.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(day_begin, now))
+            )
+            assert isclose(
+                ws.week.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(week_begin, now))
+            )
+            assert isclose(
+                ws.month.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(month_begin, now))
+            )
+            assert isclose(
+                ws.year.total_seconds(),
+                self.database_manager.get_work_time_in_period(Period(year_begin, now))
+            )
