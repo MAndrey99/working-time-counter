@@ -59,22 +59,21 @@ class Period(Base):
         date_reg = re.compile(r'(?:(?:(?P<day>\d{2})\.)?(?P<month>\d{2})\.)?(?P<year>\d{4})')
         us_like_date_reg = re.compile(r'(?P<year>\d{4})?(?:\.(?P<month>\d{2})(?:\.(?P<day>\d{2}))?)?')
 
-        def parse_date(date_string: str) -> Optional[Tuple[datetime, int]]:
+        def parse_date(date_string: str) -> Tuple[Optional[datetime], int]:
             """
             :param date_string: строка с единственной датой
-            :param op: add если надо взять следующий день, sub, если предыдущий, по-умолчанию точно указаный
             :return: представление указаной даты в виде обьекта datetime и "ранг" даты, равный 0, 1(если день не указан)
-            или 2(если месяц не указан)
+            или 2(если месяц не указан). None - текущее время.
             """
 
             if date_string == 'now':
-                return datetime.now(), 0
+                return None, 0
 
             m = re.fullmatch(date_reg, date_string)
             if not m:
                 m = re.fullmatch(us_like_date_reg, date_string)
                 if not m:
-                    return None
+                    raise ValueError
 
             return datetime(
                 int(m.group('year')),
@@ -94,11 +93,10 @@ class Period(Base):
             elif rang == 2:
                 dates.append(datetime(dates[0].year + 1, 1, 1))
 
-        if not all(dates):
-            raise ValueError('неверный формат даты')
-
-        if len(dates) == 2 and dates[1] < dates[0]:
-            raise ValueError('дата начала анализируемого промежутка времени обязана быть меньше даты конца')
+        if len(dates) == 2:
+            assert dates[0] is not None
+            if dates[1] is not None and dates[1] <= dates[0]:
+                raise ValueError('дата начала анализируемого промежутка времени обязана быть меньше даты конца')
 
         return Period(dates[0], dates[1] if len(dates) == 2 else None)
 
