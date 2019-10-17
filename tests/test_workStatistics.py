@@ -8,14 +8,14 @@ from contextlib import contextmanager
 from copy import deepcopy
 from typing import *
 
-from .db_menenger import DatabaseManager
+from tests.db_utils import DatabaseManager, get_max_end_time
 from database import Period
 from work_statistics import WorkStatistics
 
 DATABASE = 'sqlite:///testdb.sqlite'
 
 
-@freeze_time('2019-09-25 15:41:45.000000')
+@freeze_time(get_max_end_time(DATABASE))
 class TestWorkStatistics:
     __slots__ = ("database_manager", )
 
