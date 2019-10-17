@@ -8,7 +8,7 @@ import daemon
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = 'sqlite:///' + str(APP_ROOT / 'stats.sqlite')
 LOGS_DIR = APP_ROOT / 'logs'
-VERSION = 'v1.0'
+VERSION = 'v1.0.1'
 STATISTIC_UPDATE_DELAY = 10
 logger: logging.Logger
 main: Callable
@@ -42,7 +42,7 @@ def init():
     import argparse
     from logging import handlers
     from sys import stdout
-    from database import Period, create_tables, init as initORM
+    from database import Period, create_tables, init as init_orm
     global logger, main
 
     # настраиваем логгирование
@@ -73,23 +73,24 @@ def init():
     stat_parser.add_argument('-f', dest='follow', action='store_true', help='переводит в режим постоянного мониторинга')
     stat_parser.add_argument(dest='period', type=Period.from_string, default=None, nargs='?')
 
-    daemon_parser = subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
-    info_parser = subparsers.add_parser('about', help='информация о программе')
+    subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
+    subparsers.add_parser('about', help='информация о программе')
 
     args = parser.parse_args()
 
     if args.action == 'daemon':
         main = daemon.start  # запускает демона для записи времени активности в базу
-        initORM(DATABASE, check_exists=False)
+        init_orm(DATABASE, check_exists=False)
         create_tables()
     elif args.action == 'about':
         main = print_info  # выводит информацию о программе
     elif args.action == 'stat':
         if args.period:
-            def main():
+            def print_period_statistics():
                 from work_statistics import WorkStatistics
-                print(f'{WorkStatistics.from_db(cache_ymwd=False).period_stat(args.period).total_seconds() / 3600:.1f}h')
+                print(f'{WorkStatistics.period_stat(args.period).total_seconds() / 3600:.1f}h')
 
+            main = print_period_statistics
             if args.follow:
                 print('отображение в реальном времени для временных промежутков пока недоступно(')
         else:
@@ -98,7 +99,7 @@ def init():
             else:
                 main = print_statistics  # просто печать данных
 
-        initORM(DATABASE)
+        init_orm(DATABASE)
     else:
         main = parser.print_help  # печать инфы о передаваемых параметрах
 

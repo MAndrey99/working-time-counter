@@ -48,9 +48,12 @@ class TestPeriod:
 
     def test_from_string(self):
         def random_test_case():
-            def date_as_string(d: Tuple[int, Optional[int], Optional[int]]) -> str:
+            def date_as_string(d: Tuple[int, Optional[int], Optional[int]], error=False) -> str:
                 assert d[0] > 1000
                 parts = [f'{it:0>2}' for it in d if it is not None]
+
+                if error:
+                    parts[randint(0, len(parts)) - 1] = 'xx'
 
                 if random() < .5:  # амереканский формат
                     return '.'.join(parts)
@@ -65,7 +68,7 @@ class TestPeriod:
                 else:
                     return (d.year, d.month, d.day), d
 
-            begin = date.fromtimestamp(randint(0, 10**10))
+            begin = date.fromtimestamp(randint(0, int(datetime.now().timestamp()) - 1))
             begin_tuple, begin = date_to_tuple_with_transform(begin)
             if random() < .2:
                 # Период размером в год, месяц или день
@@ -77,20 +80,30 @@ class TestPeriod:
                 else:
                     end = begin + timedelta(days=1)
 
+                with_error = random() < .2
                 return (
-                    date_as_string(begin_tuple),
-                    Period(begin, end)
+                    date_as_string(begin_tuple, with_error),
+                    ValueError if with_error else Period(begin, end)
                 )
+            elif random() < .1:
+                # период до now
+                return date_as_string(begin_tuple) + '-now', Period(begin, None)
+            elif random() < .1:
+                # неправельный период из множества дат
+                return '-'.join(date_as_string(begin_tuple) * randint(3, 5)), ValueError
             else:
-                end = date.fromtimestamp(randint(10**6, 10**11))
+                end = date.fromtimestamp(randint(int(datetime.now().timestamp()) - 10**9, 10**9*2))
                 end_tuple, end = date_to_tuple_with_transform(end)
 
+                first_with_error = random() < .2
+                second_with_error = random() < .2
+
                 return (
-                    date_as_string(begin_tuple) + '-' + date_as_string(end_tuple),
-                    Period(begin, end) if end > begin else ValueError
+                    date_as_string(begin_tuple, first_with_error) + '-' + date_as_string(end_tuple, second_with_error),
+                    Period(begin, end) if end > begin and not first_with_error and not second_with_error else ValueError
                 )
 
-        for _ in range(100):
+        for _ in range(1000):
             arg, res = random_test_case()
             if type(res) is type and issubclass(res, Exception):
                 with raises(res):

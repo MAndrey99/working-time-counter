@@ -1,4 +1,5 @@
-# working time counter v1.0
+# working time counter v1.0  
+[![CircleCI](https://circleci.com/gh/MAndrey99/working-time-counter/tree/master.svg?style=svg&circle-token=f8cb2cef7e4796896de4c8014cd59dd2aab6c172)](https://circleci.com/gh/MAndrey99/working-time-counter/tree/develop)
 
 # Использование
 ## Режимы работы
@@ -42,7 +43,7 @@
 > python3 wtc.py stat 10.7.2019
 
 
-# Установка
+# Установка и тестирование
 ## Требования к системе
  - linux
  - python 3.7+
@@ -57,3 +58,9 @@
 
 Если комманда завершилась неудачей, то установите необходимые пакеты и
 попробуйте снова.
+
+## Запуск тестов
+Тесты запускаются при установленных пакетах, указанных в requirements/dev.txt
+
+Запуск тестов требуется осуществлять из корня проекта командой:
+> pytest tests
