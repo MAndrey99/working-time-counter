@@ -107,7 +107,7 @@ def init(database_url: str, *, check_exists=True):
 
     if check_exists:
         try:
-            assert Period.__tablename__ in MetaData(engine, reflect=True).tables
+            assert Period.__tablename__ in Base.metadata.tables
         except OperationalError:
             raise ConnectionError("невозмбжно подключиться к базе данных")
 
@@ -115,7 +115,9 @@ def init(database_url: str, *, check_exists=True):
 
 
 def create_tables():
-    """Создает не существующие таблицы"""
+    """
+    Создает таблицу для хранения промежутков рабочего времени
+    """
     Base.metadata.create_all(engine)
 
 

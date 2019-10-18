@@ -8,23 +8,32 @@ import daemon
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = 'sqlite:///' + str(APP_ROOT / 'stats.sqlite')
 LOGS_DIR = APP_ROOT / 'logs'
-VERSION = 'v1.0.1'
+VERSION = 'v1.0.2'
 STATISTIC_UPDATE_DELAY = 10
 logger: logging.Logger
 main: Callable
 
 
 def print_info():
+    """
+    Вывод основной информации о программе
+    """
     print('work time counter ' + VERSION)
-    print(f'Author: MAndrey99')
+    print('Author: MAndrey99')
 
 
 def print_statistics():
+    """
+    Вывод статистики за год, месяц, неделю, день
+    """
     monitor = WorkStatisticsMonitor()
     monitor.print_statistic()
 
 
 def statistic_monitor():
+    """
+    Вывод статистики за год, месяц, неделю, день с автоматическим обновлением раз в STATISTIC_UPDATE_DELAY секунд
+    """
     from time import sleep
 
     with WorkStatisticsMonitor() as monitor:
@@ -38,7 +47,6 @@ def init():
     """
     парсит аргументы, настраивает логгирование и инициализирует функцию main
     """
-
     import argparse
     from logging import handlers
     from sys import stdout
@@ -58,7 +66,10 @@ def init():
     file_handler.setFormatter(formatter)
 
     stdout_handler = logging.StreamHandler(stdout)
-    stdout_handler.setFormatter(logging.Formatter(fmt='%(levelname)s: %(message)s'))
+    stdout_handler.setFormatter(logging.Formatter(
+        fmt='%(asctime)s %(levelname)s: %(message)s',
+        datefmt='%H:%M:%S'
+    ))
 
     logger = logging.getLogger('wtc')
     logger.addHandler(stdout_handler)

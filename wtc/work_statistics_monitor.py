@@ -1,19 +1,18 @@
 import curses
 from typing import *
-from dataclasses import dataclass
 from work_statistics import WorkStatistics
 
 
-@dataclass(order=True)
-class WordPosition:
-    y: int
-    x: int
-
-    def __iter__(self):
-        return iter((self.y, self.x))
-
-
 class WorkStatisticsMonitor:
+    """
+    Основной класс для вывода статистики.
+
+    Имеет 2 режима работы:
+     - вывод информации в stdout
+     - вывод информации с использованием curses с возможностью обновлять данные на экране, проверяя новые записи в бд.
+       (используется как контекстный мененджер)
+    """
+
     __slots__ = ('_stats', '_scr', '_template')
 
     def __init__(self):
