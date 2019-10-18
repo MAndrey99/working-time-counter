@@ -10,7 +10,7 @@ class WorkStatistics:
     __slots__ = ('_cache_ymwd', '_year', '_month', '_week', '_day', '_last_update')
 
     def __init__(self):
-        self._last_update: Optional[datetime] = None  # время последнего обновления данных из бд
+        self._last_update: Optional[datetime] = None  # время конца последнего учтеного периода
         self._cache_ymwd: bool = False  # используется ли кэширование рассчитанного отработаного времени
         self._year: Optional[int] = None  # количество отработанного времени в году (сек)
         self._month: Optional[int] = None  # количество отработанного времени в месяце (сек)
@@ -40,8 +40,8 @@ class WorkStatistics:
                 end_timestamp = period.end.timestamp()
                 assert end_timestamp <= datetime.now().timestamp()
                 assert last_update is None or last_update <= period.begin
-                last_update = period.end
 
+                last_update = period.end
                 year += max(end_timestamp - max(begin_timestamp, y), 0)
                 month += max(end_timestamp - max(begin_timestamp, m), 0)
                 week += max(end_timestamp - max(begin_timestamp, w), 0)
@@ -113,12 +113,11 @@ class WorkStatistics:
                 assert end_timestamp < datetime.now().timestamp()
                 assert self._last_update <= period.begin
 
+                self._last_update = period.end
                 self._year += max(end_timestamp - max(begin_timestamp, y), 0)
                 self._month += max(end_timestamp - max(begin_timestamp, m), 0)
                 self._week += max(end_timestamp - max(begin_timestamp, w), 0)
                 self._day += max(end_timestamp - max(begin_timestamp, d), 0)
-
-        self._last_update = datetime.now()
 
     @property
     def year(self) -> timedelta:
