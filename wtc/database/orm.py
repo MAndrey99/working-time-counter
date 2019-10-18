@@ -107,7 +107,7 @@ def init(database_url: str, *, check_exists=True):
 
     if check_exists:
         try:
-            assert Period.__tablename__ in MetaData(engine, reflect=True).tables
+            assert Period.__tablename__ in Base.metadata.tables
         except OperationalError:
             raise ConnectionError("невозмбжно подключиться к базе данных")
 
