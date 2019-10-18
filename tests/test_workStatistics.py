@@ -92,7 +92,9 @@ class TestWorkStatistics:
                     ws.update()
                     mock.assert_called()
 
-                assert ws._last_update == day_end
+                # хоть обновление было и позже, последяя запись в бд произошла в now тк время в тестах заморожено
+                assert ws._last_update == now
+
                 assert ws.day.total_seconds() == ws._day == 0
                 if day_end < week_end:
                     assert isclose(ws.week.total_seconds(), ws._week) and isclose(ws._week, last_cache['week'])
@@ -115,7 +117,7 @@ class TestWorkStatistics:
                     finally:
                         t.rollback()
 
-                    assert ws._last_update == now
+                    assert ws._last_update == datetime.fromtimestamp(end)
                     assert isclose(ws.day.total_seconds(), length)
 
                     ws = last_ws
@@ -149,15 +151,13 @@ class TestWorkStatistics:
             assert ws.week.total_seconds() == 99
 
             # проверяем, что при обновлении, когда в базу ни чего не добавилось, текущие данные не сбрасываются
-            ws._day = 99
-            ws._week = 98
-            ws._month = 97
-            ws._year = 96
+            ws._day, ws._week, ws._month, ws._year = range(96, 100)
+            ws._last_update = datetime(2020, 1, 1)
             with freeze_time(datetime(2020, 1, 1, 2)):
                 # это через 2 часа после предыдущего update
                 ws.update()
-            assert ws.day.total_seconds() == 99 and ws.week.total_seconds() == 98 \
-                and ws.month.total_seconds() == 97 and ws.year.total_seconds() == 96
+            assert (ws.day.total_seconds(), ws.week.total_seconds(), ws.month.total_seconds(), ws.year.total_seconds())\
+                == tuple(range(96, 100))
 
         # проверяем, что без кэша update ничего не делает и не стучится в бд
         with patch('work_statistics.new_session') as mock:
