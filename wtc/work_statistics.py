@@ -89,7 +89,7 @@ class WorkStatistics:
         today = datetime.fromtimestamp(d)
 
         # обнуляем данные о времени в прошлом году, месяце, ...
-        if today != self._last_update.date():
+        if today.date() != self._last_update.date():
             self._day = 0
 
             if today.year != self._last_update.year:

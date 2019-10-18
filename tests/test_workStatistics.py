@@ -140,20 +140,32 @@ class TestWorkStatistics:
                     assert ws.month.total_seconds() == ws._month == 0
                     assert ws.year.total_seconds() == ws._year == 0
 
-                # проверяем, что в новый год не сбрасывается инфа за неделю если она не кончилась
-                ws._last_update = datetime(2019, 12, 31)
-                ws._week = 99
-                with freeze_time(datetime(2020, 1, 1)), patch('work_statistics.new_session', MagicMock):
-                    ws.update()
-                assert ws.week.total_seconds() == 99
+        with patch('work_statistics.new_session', MagicMock):
+            # проверяем, что в новый год не сбрасывается инфа за не законченую неделю
+            ws._last_update = datetime(2019, 12, 31)
+            ws._week = 99
+            with freeze_time(datetime(2020, 1, 1)):
+                ws.update()
+            assert ws.week.total_seconds() == 99
+
+            # проверяем, что при обновлении, когда в базу ни чего не добавилось, текущие данные не сбрасываются
+            ws._day = 99
+            ws._week = 98
+            ws._month = 97
+            ws._year = 96
+            with freeze_time(datetime(2020, 1, 1, 2)):
+                # это через 2 часа после предыдущего update
+                ws.update()
+            assert ws.day.total_seconds() == 99 and ws.week.total_seconds() == 98 \
+                and ws.month.total_seconds() == 97 and ws.year.total_seconds() == 96
 
         # проверяем, что без кэша update ничего не делает и не стучится в бд
-        ws = WorkStatistics()
-        last = dumps(ws, protocol=4)
         with patch('work_statistics.new_session') as mock:
+            ws = WorkStatistics()
+            last = dumps(ws, protocol=4)
             ws.update()
             mock.assert_not_called()
-        assert last == dumps(ws, protocol=4)
+            assert last == dumps(ws, protocol=4)
 
     def test_ymwd(self):
         now = datetime.now()

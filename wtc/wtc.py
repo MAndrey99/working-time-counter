@@ -66,7 +66,10 @@ def init():
     file_handler.setFormatter(formatter)
 
     stdout_handler = logging.StreamHandler(stdout)
-    stdout_handler.setFormatter(logging.Formatter(fmt='%(levelname)s: %(message)s'))
+    stdout_handler.setFormatter(logging.Formatter(
+        fmt='%(asctime)s %(levelname)s: %(message)s',
+        datefmt='%H:%M:%S'
+    ))
 
     logger = logging.getLogger('wtc')
     logger.addHandler(stdout_handler)
