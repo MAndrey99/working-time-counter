@@ -15,16 +15,25 @@ main: Callable
 
 
 def print_info():
+    """
+    Вывод основной информации о программе
+    """
     print('work time counter ' + VERSION)
-    print(f'Author: MAndrey99')
+    print('Author: MAndrey99')
 
 
 def print_statistics():
+    """
+    Вывод статистики за год, месяц, неделю, день
+    """
     monitor = WorkStatisticsMonitor()
     monitor.print_statistic()
 
 
 def statistic_monitor():
+    """
+    Вывод статистики за год, месяц, неделю, день с автоматическим обновлением раз в STATISTIC_UPDATE_DELAY секунд
+    """
     from time import sleep
 
     with WorkStatisticsMonitor() as monitor:
@@ -38,7 +47,6 @@ def init():
     """
     парсит аргументы, настраивает логгирование и инициализирует функцию main
     """
-
     import argparse
     from logging import handlers
     from sys import stdout

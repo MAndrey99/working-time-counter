@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from freezegun import freeze_time
 from datetime import datetime, timedelta
 from random import randint, random
@@ -137,14 +137,22 @@ class TestWorkStatistics:
                 with freeze_time(year_end):
                     ws.update()
                     assert ws.day.total_seconds() == ws._day == 0
-                    assert ws.week.total_seconds() == ws._week == 0
                     assert ws.month.total_seconds() == ws._month == 0
                     assert ws.year.total_seconds() == ws._year == 0
 
-        # проверяем, что без кэша update ничего не делает
+                # проверяем, что в новый год не сбрасывается инфа за неделю если она не кончилась
+                ws._last_update = datetime(2019, 12, 31)
+                ws._week = 99
+                with freeze_time(datetime(2020, 1, 1)), patch('work_statistics.new_session', MagicMock):
+                    ws.update()
+                assert ws.week.total_seconds() == 99
+
+        # проверяем, что без кэша update ничего не делает и не стучится в бд
         ws = WorkStatistics()
         last = dumps(ws, protocol=4)
-        ws.update()
+        with patch('work_statistics.new_session') as mock:
+            ws.update()
+            mock.assert_not_called()
         assert last == dumps(ws, protocol=4)
 
     def test_ymwd(self):

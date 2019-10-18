@@ -22,7 +22,6 @@ class WorkStatistics:
         """
         создание экземпляра WorkStatistics с кжшированными данными из базы
         """
-
         year = 0
         month = 0
         week = 0
@@ -61,12 +60,8 @@ class WorkStatistics:
     @staticmethod
     def period_stat(p: Period) -> timedelta:
         """
-        активное время за произвольный промежуток времени
-
-        :param p: промежуток в котором будет считаться активное время
-        :return: активное время
+        :return: активное время за указанный период
         """
-
         if p.end is None:
             p = Period(p.begin, datetime.now())
 
@@ -85,29 +80,27 @@ class WorkStatistics:
         """
         подгружает при необходимости новые данные из базы и обновляет изначально вычесленные значения если они были
         """
-
         if not self._cache_ymwd:
             return
 
         assert self._last_update
 
-        y, m, w, d = get_ymwd_begins_timestamps()
+        y, m, w, d = get_ymwd_begins_timestamps()  # получаем время начала текущего года, месяца, недели, дня
         today = datetime.fromtimestamp(d)
 
-        if today.year != self._last_update.year:
-            self._year = 0
-            self._month = 0
-            self._week = 0
-            self._day = 0
-        elif today.month != self._last_update.month:
-            self._month = 0
-            self._week = 0
-            self._day = 0
-        elif today.day != self._last_update.day:
+        # обнуляем данные о времени в прошлом году, месяце, ...
+        if today != self._last_update.date():
             self._day = 0
 
-            if today.weekday() < self._last_update.weekday() \
-                    or today.day - self._last_update.day >= 7:
+            if today.year != self._last_update.year:
+                self._year = 0
+                self._month = 0
+            elif today.month != self._last_update.month:
+                self._month = 0
+
+            # проверяем изменилась ли неделя
+            if today.timestamp() - self._last_update.timestamp() > 60*60*24*7\
+                    or today.weekday() < self._last_update.weekday():
                 self._week = 0
 
         with new_session() as session:
@@ -161,6 +154,9 @@ class WorkStatistics:
 
 
 def get_ymwd_begins_timestamps() -> Tuple[float, float, float, float]:
+    """
+    :return: кортеж со временем начала текущего года, месяца, недели, дня в секундах от начала эпохи
+    """
     today = date.today()
     return datetime(today.year, 1, 1).timestamp(), \
         datetime(today.year, today.month, 1).timestamp(), \

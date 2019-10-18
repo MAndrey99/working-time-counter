@@ -115,7 +115,9 @@ def init(database_url: str, *, check_exists=True):
 
 
 def create_tables():
-    """Создает не существующие таблицы"""
+    """
+    Создает таблицу для хранения промежутков рабочего времени
+    """
     Base.metadata.create_all(engine)
 
 
