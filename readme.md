@@ -1,5 +1,5 @@
-# working time counter v1.0  
-![CircleCI](https://circleci.com/gh/MAndrey99/working-time-counter/tree/develop.svg?style=svg)
+# working time counter v1.1  
+![CircleCI](https://circleci.com/gh/MAndrey99/working-time-counter/tree/master.svg?style=svg)
 
 # Использование
 ## Режимы работы
