@@ -125,8 +125,21 @@ def parse_args_and_init_main():
         main = parser.print_help  # печать инфы о передаваемых параметрах
 
 
-def read_configfile() -> dict:
-    pass  # TODO
+def apply_configfile():
+    from configparser import ConfigParser
+    global STATISTIC_UPDATE_DELAY
+
+    config = ConfigParser()
+    config.read(CONFIGFILE)
+
+    # client
+    client_config = config['client']
+    STATISTIC_UPDATE_DELAY = client_config.getfloat('statistic_update_delay')
+
+    # daemon
+    daemon_config = config['daemon']
+    daemon.MINIMUM_ACTIVE_TIME = daemon_config.getfloat('minimum_active_time')
+    daemon.UPDATE_DELAY = daemon_config.getfloat('update_delay')
 
 
 def create_default_configfile():
@@ -152,8 +165,7 @@ def init():
     parse_args_and_init_main()
 
     if CONFIGFILE.is_file():
-        config = read_configfile()
-        # TODO: рименение конфига
+        apply_configfile()
     else:
         create_default_configfile()
 
