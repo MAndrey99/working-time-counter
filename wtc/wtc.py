@@ -130,7 +130,21 @@ def read_configfile() -> dict:
 
 
 def create_default_configfile():
-    pass  # TODO
+    with CONFIGFILE.open('w') as f:
+        f.write(f'''\
+# время указывается в секундах
+
+[daemon]
+# минимальное учитываение время работы компьютера
+minimum_active_time = {daemon.MINIMUM_ACTIVE_TIME}
+
+# пауза после каждого обновления статистики
+update_delay = {daemon.UPDATE_DELAY}
+
+[client]
+# раз в какой промежуток времени будет обновляться информация в интерактивном режиме
+statistic_update_delay = {STATISTIC_UPDATE_DELAY}
+''')
 
 
 def init():
