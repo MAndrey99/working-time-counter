@@ -134,12 +134,13 @@ def apply_configfile():
 
     # client
     client_config = config['client']
-    STATISTIC_UPDATE_DELAY = client_config.getfloat('statistic_update_delay')
+    STATISTIC_UPDATE_DELAY = client_config.getfloat('statistic_update_delay', STATISTIC_UPDATE_DELAY)
 
     # daemon
     daemon_config = config['daemon']
-    daemon.MINIMUM_ACTIVE_TIME = daemon_config.getfloat('minimum_active_time')
-    daemon.UPDATE_DELAY = daemon_config.getfloat('update_delay')
+    daemon.MINIMUM_ACTIVE_TIME = daemon_config.getfloat('minimum_active_time', daemon.MINIMUM_ACTIVE_TIME)
+    daemon.MAX_COUNTED_SLEEP = daemon_config.getfloat('max_counted_sleep', daemon.MAX_COUNTED_SLEEP)
+    daemon.UPDATE_DELAY = daemon_config.getfloat('update_delay', daemon.UPDATE_DELAY)
 
 
 def create_default_configfile():
@@ -150,6 +151,9 @@ def create_default_configfile():
 [daemon]
 # минимальное учитываение время работы компьютера
 minimum_active_time = {daemon.MINIMUM_ACTIVE_TIME}
+
+# максимальное засчитываемое время в режиме сна
+max_counted_sleep = {daemon.MAX_COUNTED_SLEEP}
 
 # пауза после каждого обновления статистики
 update_delay = {daemon.UPDATE_DELAY}
