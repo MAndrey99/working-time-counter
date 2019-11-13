@@ -7,6 +7,7 @@ import daemon
 
 APP_ROOT: Path = Path(__file__).absolute().parent.parent
 DATABASE = 'sqlite:///' + str(APP_ROOT / 'stats.sqlite')
+CONFIGFILE = APP_ROOT / 'config.ini'
 LOGS_DIR = APP_ROOT / 'logs'
 VERSION = 'v1.0.2'
 STATISTIC_UPDATE_DELAY = 10
@@ -43,17 +44,15 @@ def statistic_monitor():
             monitor.update()
 
 
-def init():
+def init_logging():
     """
-    парсит аргументы, настраивает логгирование и инициализирует функцию main
+    Настраевает логгирования
     """
-    import argparse
+
     from logging import handlers
     from sys import stdout
-    from database import Period, create_tables, init as init_orm
-    global logger, main
+    global logger
 
-    # настраиваем логгирование
     if not LOGS_DIR.is_dir():
         LOGS_DIR.mkdir()
 
@@ -62,7 +61,8 @@ def init():
         datefmt='%d.%m.%y %H:%M:%S'
     )
 
-    file_handler = handlers.RotatingFileHandler(LOGS_DIR / 'log', maxBytes=1024**2, backupCount=1, encoding="utf-8")
+    file_handler = handlers.RotatingFileHandler(LOGS_DIR / 'log', maxBytes=1024 ** 2, backupCount=1,
+                                                encoding="utf-8")
     file_handler.setFormatter(formatter)
 
     stdout_handler = logging.StreamHandler(stdout)
@@ -76,12 +76,22 @@ def init():
     logger.addHandler(file_handler)
     logger.setLevel(logging.ERROR)
 
-    # парсим аргументы и инициализируем функцию main с orm
+
+def parse_args_and_init_main():
+    """
+    Парсит аргументы командной строки и инициализирует функцию main
+    """
+
+    import argparse
+    from database import Period, create_tables, init as init_orm
+    global main
+
     parser = argparse.ArgumentParser(description='Программа для учета рабочего времени')
     subparsers = parser.add_subparsers(dest='action')
 
     stat_parser = subparsers.add_parser('stat', help='выводит подсчитаное время')
-    stat_parser.add_argument('-f', dest='follow', action='store_true', help='переводит в режим постоянного мониторинга')
+    stat_parser.add_argument('-f', dest='follow', action='store_true',
+                             help='переводит в режим постоянного мониторинга')
     stat_parser.add_argument(dest='period', type=Period.from_string, default=None, nargs='?')
 
     subparsers.add_parser('daemon', help='производит подсчет времени и ведет журнал')
@@ -113,6 +123,25 @@ def init():
         init_orm(DATABASE)
     else:
         main = parser.print_help  # печать инфы о передаваемых параметрах
+
+
+def read_configfile() -> dict:
+    pass  # TODO
+
+
+def create_default_configfile():
+    pass  # TODO
+
+
+def init():
+    init_logging()
+    parse_args_and_init_main()
+
+    if CONFIGFILE.is_file():
+        config = read_configfile()
+        # TODO: рименение конфига
+    else:
+        create_default_configfile()
 
 
 if __name__ == '__main__':
