@@ -1,5 +1,5 @@
-# working time counter v1.0  
-[![CircleCI](https://circleci.com/gh/MAndrey99/working-time-counter/tree/master.svg?style=svg&circle-token=f8cb2cef7e4796896de4c8014cd59dd2aab6c172)](https://circleci.com/gh/MAndrey99/working-time-counter/tree/master)
+# working time counter v1.1  
+![CircleCI](https://circleci.com/gh/MAndrey99/working-time-counter/tree/master.svg?style=svg)
 
 # Использование
 ## Режимы работы
@@ -42,6 +42,11 @@
 
 > python3 wtc.py stat 10.7.2019
 
+
+## Настройка
+Для возможности удобной настройки при первом запуске создается файл `config.ini` 
+
+---
 
 # Установка и тестирование
 ## Требования к системе
